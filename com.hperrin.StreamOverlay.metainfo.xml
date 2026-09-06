@@ -24,6 +24,15 @@
   <developer_name>Hunter Perrin</developer_name>
 
   <releases>
+    <release version="6.2.0" date="2026-09-06">
+      <description>
+        <p>Align windows to any edge or corner, with offsets in pixels or percent.</p>
+        <p>Moving or resizing a window updates the config editor, so layouts can be saved.</p>
+        <p>Option to launch a config file automatically at startup.</p>
+        <p>Option to cover the taskbar, and opacity is editable in the editor.</p>
+        <p>Refreshed config editor interface.</p>
+      </description>
+    </release>
     <release version="6.1.0" date="2025-06-01">
       <description>
         <p>Add display option for launching windows on a non-primary display.</p>
