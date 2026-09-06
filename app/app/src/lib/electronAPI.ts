@@ -33,6 +33,13 @@ const electronAPI =
               callback: (event: any, data: WindowPosition) => void,
             ): void;
             requestSettings(): void;
+            requestCloseAll(): void;
+            requestRestoreFiles(): void;
+            restored(callback: (event: any) => void): void;
+            requestSetOpenFiles(data: { filenames: string[] }): void;
+            overlays(
+              callback: (event: any, data: { count: number }) => void,
+            ): void;
             requestSetDefaultConfig(data: { filename: string | null }): void;
           };
         }
@@ -64,6 +71,11 @@ const electronAPI =
           _callback: (event: any, data: WindowPosition) => void,
         ) {},
         requestSettings() {},
+        requestCloseAll() {},
+        requestRestoreFiles() {},
+        restored(_callback: (event: any) => void) {},
+        requestSetOpenFiles(_data: { filenames: string[] }) {},
+        overlays(_callback: (event: any, data: { count: number }) => void) {},
         requestSetDefaultConfig(_data: { filename: string | null }) {},
       };
 

@@ -8,6 +8,8 @@ contextBridge.exposeInMainWorld('electronAPI', {
   saved: (callback) => ipcRenderer.on('saved', callback),
   settings: (callback) => ipcRenderer.on('settings', callback),
   windowPosition: (callback) => ipcRenderer.on('windowPosition', callback),
+  overlays: (callback) => ipcRenderer.on('overlays', callback),
+  restored: (callback) => ipcRenderer.on('restored', callback),
   requestFocusEvent: () => ipcRenderer.invoke('requestFocusEvent'),
   requestConfig: () => ipcRenderer.invoke('requestConfig'),
   requestClose: () => ipcRenderer.invoke('requestClose'),
@@ -17,6 +19,10 @@ contextBridge.exposeInMainWorld('electronAPI', {
   requestSaveAs: (data) => ipcRenderer.invoke('requestSaveAs', data),
   requestLaunch: (data) => ipcRenderer.invoke('requestLaunch', data),
   requestSettings: () => ipcRenderer.invoke('requestSettings'),
+  requestCloseAll: () => ipcRenderer.invoke('requestCloseAll'),
+  requestRestoreFiles: () => ipcRenderer.invoke('requestRestoreFiles'),
+  requestSetOpenFiles: (data) =>
+    ipcRenderer.invoke('requestSetOpenFiles', data),
   requestSetDefaultConfig: (data) =>
     ipcRenderer.invoke('requestSetDefaultConfig', data),
 });

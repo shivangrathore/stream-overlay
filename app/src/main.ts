@@ -197,6 +197,8 @@ const {
 
 type Settings = {
   defaultConfigFile?: string;
+  // The config files that were open in the editor when it was last closed.
+  openConfigFiles?: string[];
 };
 
 // User settings, stored next to the app's user data.
@@ -229,6 +231,48 @@ const getDefaultConfigFile = () =>
 
 const sendSettings = () => {
   configEditorWindow?.webContents.send('settings', settings);
+};
+
+const sendOverlayCount = () => {
+  configEditorWindow?.webContents.send('overlays', { count: wins.length });
+};
+
+const getRememberedConfigFiles = () => {
+  const defaultConfigFile = getDefaultConfigFile();
+
+  return [
+    ...(defaultConfigFile ? [defaultConfigFile] : []),
+    ...(settings.openConfigFiles ?? []),
+  ].filter(
+    (filename, i, all) =>
+      all.indexOf(filename) === i && fs.existsSync(filename),
+  );
+};
+
+const sendConfigFile = (
+  sender: Electron.WebContents | undefined,
+  filename: string,
+) => {
+  try {
+    const config = JSON.parse(fs.readFileSync(filename).toString());
+    sender?.send('configFile', {
+      filename,
+      basename: path.basename(filename),
+      config,
+    });
+  } catch (e: any) {
+    dialog.showErrorBox("Can't open config file.", e.message);
+  }
+};
+
+const closeAllOverlays = () => {
+  for (let entry of [...wins]) {
+    // Use setImmediate so the actions in the close event don't prevent the
+    // rest from closing.
+    setImmediate(() => {
+      entry.win.close();
+    });
+  }
 };
 
 // All the open overlay windows.
@@ -309,6 +353,21 @@ ipcMain.handle('requestConfigFile', (event) => {
 });
 ipcMain.handle('requestSettings', (event) => {
   event.sender.send('settings', settings);
+});
+ipcMain.handle('requestRestoreFiles', (event) => {
+  // The editor asks for these itself, once it's listening. Pushing them when
+  // the page finished loading was too early, and they were dropped.
+  for (let filename of getRememberedConfigFiles()) {
+    sendConfigFile(event.sender, filename);
+  }
+  event.sender.send('restored');
+});
+ipcMain.handle('requestCloseAll', (_event) => {
+  closeAllOverlays();
+});
+ipcMain.handle('requestSetOpenFiles', (_event, { filenames }) => {
+  settings.openConfigFiles = (filenames as string[]).filter((name) => !!name);
+  writeSettings();
 });
 ipcMain.handle('requestSetDefaultConfig', (_event, { filename }) => {
   if (filename) {
@@ -745,21 +804,7 @@ const createConfigEditorWindow = () => {
 
   configEditorWindow.webContents.on('did-finish-load', () => {
     sendSettings();
-
-    // Open the startup config file so it's ready to edit.
-    const filename = getDefaultConfigFile();
-    if (filename) {
-      try {
-        const config = JSON.parse(fs.readFileSync(filename).toString());
-        configEditorWindow?.webContents.send('configFile', {
-          filename,
-          basename: path.basename(filename),
-          config,
-        });
-      } catch (e: any) {
-        dialog.showErrorBox("Can't open config file.", e.message);
-      }
-    }
+    sendOverlayCount();
   });
   // configEditorWindow.webContents.openDevTools();
 
@@ -832,20 +877,12 @@ const makeTray = () => {
         }
       },
     })),
-    ...(configEditorWindow && wins.length
+    ...(wins.length
       ? ([
           { type: 'separator' },
           {
             label: 'Close All Overlays',
-            click: () => {
-              for (let entry of wins) {
-                // Use setImmediate so the actions in the close event don't
-                // prevent the rest from closing.
-                setImmediate(() => {
-                  entry.win.close();
-                });
-              }
-            },
+            click: closeAllOverlays,
           },
         ] as (MenuItemConstructorOptions | MenuItem)[])
       : []),
@@ -878,6 +915,7 @@ const makeTray = () => {
     },
   ]);
   tray.setContextMenu(contextMenu);
+  sendOverlayCount();
 };
 
 let config: Conf[] = [];
@@ -907,6 +945,13 @@ const launchConfigFile = (filename: string) => {
       }
       config.push(entry);
     }
+
+    // Remember it, so the editor can offer it again later.
+    settings.openConfigFiles = [
+      filename,
+      ...(settings.openConfigFiles ?? []).filter((name) => name !== filename),
+    ];
+    writeSettings();
   } catch (e: any) {
     dialog.showErrorBox('Error reading config file.', e.message);
     app.exit(1);

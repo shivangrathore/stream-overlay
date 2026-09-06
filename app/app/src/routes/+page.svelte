@@ -99,33 +99,44 @@
               >
             </div>
           </div>
-          <div class="dropdown">
+          <div class="launch-buttons">
             <button
-              class="btn btn-purple dropdown-toggle"
-              type="button"
-              id="launchDropdown"
-              data-bs-toggle="dropdown"
-              aria-expanded="false"
+              class="btn btn-secondary"
+              disabled={overlayCount === 0}
+              title="Close every open overlay window."
+              onclick={() => electronAPI.requestCloseAll()}
+              >Close Overlays{#if overlayCount}<span class="count-badge"
+                  >{overlayCount}</span
+                >{/if}</button
             >
-              Launch All
-            </button>
-            <ul
-              class="dropdown-menu dropdown-menu-end"
-              aria-labelledby="launchDropdown"
-            >
-              <li>
-                <button
-                  class="dropdown-item"
-                  onclick={() => launchAll('clickable')}>Clickable</button
-                >
-              </li>
-              <li>
-                <button
-                  class="dropdown-item"
-                  onclick={() => launchAll('normal')}>Click-Through</button
-                >
-              </li>
-            </ul>
+            <div class="dropdown">
+              <button
+                class="btn btn-purple dropdown-toggle"
+                type="button"
+                id="launchDropdown"
+                data-bs-toggle="dropdown"
+                aria-expanded="false"
+              >
+                Launch All
+              </button>
+              <ul
+                class="dropdown-menu dropdown-menu-end"
+                aria-labelledby="launchDropdown"
+              >
+                <li>
+                  <button
+                    class="dropdown-item"
+                    onclick={() => launchAll('clickable')}>Clickable</button
+                  >
+                </li>
+                <li>
+                  <button
+                    class="dropdown-item"
+                    onclick={() => launchAll('normal')}>Click-Through</button
+                  >
+                </li>
+              </ul>
+            </div>
           </div>
         </div>
 
@@ -180,10 +191,37 @@
       settings.defaultConfigFile === activeConfig.filename,
   );
 
+  let overlayCount = $state(0);
+
   electronAPI.settings((_event, data) => {
     settings = data;
   });
   electronAPI.requestSettings();
+
+  electronAPI.overlays((_event, data) => {
+    overlayCount = data.count;
+  });
+
+  // Reopen the config files from last time. This is asked for here, rather
+  // than pushed when the page loads, so nothing is sent before the handlers
+  // above are listening.
+  let restored = $state(false);
+  electronAPI.restored(() => (restored = true));
+  electronAPI.requestRestoreFiles();
+
+  // Remember which config files are open, so they come back next time. Not
+  // until the old ones are back, or this would save an empty list over them.
+  $effect(() => {
+    if (!restored) {
+      return;
+    }
+
+    const filenames = configs
+      .map((entry) => entry.filename)
+      .filter((filename) => filename !== '');
+
+    electronAPI.requestSetOpenFiles({ filenames });
+  });
 
   electronAPI.windowPosition((_event, { uid, index, position }) => {
     const container = configs.find((check) => check.uid === uid);
@@ -391,6 +429,25 @@
 
   .startup-switch .form-check-label {
     white-space: nowrap;
+  }
+
+  .launch-buttons {
+    display: flex;
+    align-items: center;
+    gap: 0.6rem;
+  }
+
+  .count-badge {
+    display: inline-block;
+    min-width: 1.35em;
+    margin-inline-start: 0.35em;
+    padding: 0.05em 0.4em;
+    border-radius: 99px;
+    background-color: var(--so-accent);
+    color: #fff;
+    font-size: 0.75em;
+    font-weight: 700;
+    line-height: 1.5;
   }
 
   .hint {

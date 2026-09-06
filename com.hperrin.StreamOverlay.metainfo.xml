@@ -24,6 +24,12 @@
   <developer_name>Hunter Perrin</developer_name>
 
   <releases>
+    <release version="6.2.1" date="2026-09-06">
+      <description>
+        <p>The config editor reopens the config files that were open last time.</p>
+        <p>Add a button to close all overlay windows, and always offer it in the tray menu.</p>
+      </description>
+    </release>
     <release version="6.2.0" date="2026-09-06">
       <description>
         <p>Align windows to any edge or corner, with offsets in pixels or percent.</p>
