@@ -74,9 +74,9 @@
       {/each}
     </svg>
 
-    <small class="text-muted"
-      >Drag a window to place it, drag its corner to resize. Arrow keys nudge
-      the selected one, hold Shift for 10&nbsp;px.</small
+    <small class="preview-hint text-muted"
+      >Drag to place, drag the corner to resize, arrow keys nudge (Shift for
+      10&nbsp;px).</small
     >
   {:else}
     <small class="text-muted">Looking for displays…</small>
@@ -295,11 +295,10 @@
   .preview {
     display: flex;
     flex-direction: column;
-    gap: 0.5rem;
-    padding: 0.9rem;
-    border: 1px solid var(--so-border);
-    border-radius: var(--so-radius);
-    background-color: var(--so-surface);
+    justify-content: center;
+    gap: 0.6rem;
+    height: 100%;
+    min-height: 0;
   }
 
   .preview.empty {
@@ -307,8 +306,13 @@
   }
 
   svg {
-    width: 100%;
-    max-height: 42vh;
+    width: auto;
+    height: auto;
+    max-width: 100%;
+    max-height: 100%;
+    min-height: 0;
+    margin: 0 auto;
+    flex: 0 1 auto;
     touch-action: none;
   }
 
@@ -323,6 +327,10 @@
     stroke: var(--so-border);
     stroke-dasharray: 8 8;
     stroke-width: 2;
+  }
+
+  .preview-hint {
+    text-align: center;
   }
 
   .display-label {

@@ -24,6 +24,14 @@
   <developer_name>Hunter Perrin</developer_name>
 
   <releases>
+    <release version="6.4.0" date="2026-09-06">
+      <description>
+        <p>The config editor is now a workspace: window list, display canvas, and an inspector for the selected window.</p>
+        <p>An empty config file no longer stops the app from starting.</p>
+        <p>Pick a display by name, duplicate a window, and use the usual keyboard shortcuts.</p>
+        <p>Fixed the theme not being applied over Bootstrap, and made the editor work at any window size.</p>
+      </description>
+    </release>
     <release version="6.3.2" date="2026-09-06">
       <description>
         <p>The Windows build ships the binding the fullscreen check needs.</p>

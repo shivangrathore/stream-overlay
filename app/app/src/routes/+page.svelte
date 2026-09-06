@@ -2,40 +2,23 @@
   <title>Config Editor - Stream Overlay</title>
 </svelte:head>
 
+<svelte:window onkeydown={handleKeydown} />
+
 <div class="editor-container">
   <header class="app-bar">
     <div class="brand">
       <span class="brand-mark">SO</span>
-      <div>
-        <div class="brand-title">Stream Overlay</div>
-        <div class="brand-subtitle">Config Editor</div>
-      </div>
+      <span class="brand-title">Stream Overlay</span>
     </div>
-    <div class="buttons">
-      <button class="btn btn-secondary" onclick={newConfig}>New</button>
-      <button
-        class="btn btn-secondary"
-        onclick={() => electronAPI.requestConfigFile()}>Open</button
-      >
-      <button
-        class="btn btn-secondary"
-        onclick={() => electronAPI.requestHelp()}>Help</button
-      >
-    </div>
-  </header>
 
-  {#if configs.length}
-    <ul
-      class="nav nav-tabs tab-strip"
-      style="overflow-x: auto; flex-wrap: nowrap; white-space: nowrap; overflow-y: hidden;"
-    >
+    <ul class="nav nav-tabs tab-strip">
       {#each configs as entry, i}
         <li class="nav-item">
           <button
             class="nav-link"
             class:active={activeIndex === i}
             aria-current="page"
-            title={entry.filename}
+            title={entry.filename || 'Not saved yet'}
             onclick={(event) => handleTabClick(event, i)}
             >{entry.basename}{#if JSON.stringify(entry.config) !== entry.origConfig}<span
                 class="unsaved-dot"
@@ -53,139 +36,124 @@
           >
         </li>
       {/each}
+      <li class="nav-item">
+        <button
+          class="nav-link new-tab"
+          title="New config file (Ctrl+N)"
+          onclick={newConfig}>+</button
+        >
+      </li>
     </ul>
-  {/if}
 
-  <div class="tab-container">
-    {#key activeIndex}
+    <div class="bar-actions">
       {#if activeConfig}
-        <div class="toolbar">
-          <div class="buttons">
-            <button
-              class="btn btn-secondary"
-              disabled={activeConfig.filename === ''}
-              onclick={() =>
-                electronAPI.requestSave({
-                  config: $state.snapshot(activeConfig.config),
-                  filename: activeConfig.filename,
-                  uid: activeConfig.uid || '',
-                })}>Save</button
-            >
-            <button
-              class="btn btn-secondary"
-              onclick={() =>
-                electronAPI.requestSaveAs({
-                  config: $state.snapshot(activeConfig.config),
-                  uid: activeConfig.uid || '',
-                })}>Save As</button
-            >
-            <div class="form-check form-switch startup-switch">
+        <button
+          class="btn btn-sm btn-secondary"
+          disabled={activeConfig.filename === '' || !unsaved}
+          title="Save (Ctrl+S)"
+          onclick={save}>Save</button
+        >
+        <button
+          class="btn btn-sm btn-secondary"
+          title="Save as (Ctrl+Shift+S)"
+          onclick={saveAs}>Save As</button
+        >
+      {/if}
+      <button
+        class="btn btn-sm btn-secondary"
+        title="Open (Ctrl+O)"
+        onclick={() => electronAPI.requestConfigFile()}>Open</button
+      >
+
+      <div class="dropdown">
+        <button
+          class="btn btn-sm btn-secondary dropdown-toggle"
+          type="button"
+          id="settingsMenu"
+          data-bs-toggle="dropdown"
+          data-bs-auto-close="outside"
+          aria-expanded="false">Settings</button
+        >
+        <div
+          class="dropdown-menu dropdown-menu-end settings-menu"
+          aria-labelledby="settingsMenu"
+        >
+          <div class="setting">
+            <div class="form-check form-switch">
               <input
                 type="checkbox"
                 role="switch"
                 class="form-check-input"
                 id="startupConfig"
-                disabled={activeConfig.filename === ''}
+                disabled={!activeConfig || activeConfig.filename === ''}
                 checked={isStartupConfig}
                 onchange={toggleStartupConfig}
               />
-              <label
-                for="startupConfig"
-                class="form-check-label"
-                title={activeConfig.filename === ''
-                  ? 'Save this config file first.'
-                  : 'Launch this config automatically when Stream Overlay starts.'}
-                >Launch on startup</label
+              <label for="startupConfig" class="form-check-label"
+                >Launch this config at startup</label
               >
             </div>
+            <small class="text-muted"
+              >{activeConfig && activeConfig.filename === ''
+                ? 'Save the config file first.'
+                : 'Its overlays open by themselves when the app starts.'}</small
+            >
           </div>
-          <div class="launch-buttons">
-            <button
-              class="btn btn-secondary"
-              class:active={editMode}
-              aria-pressed={editMode}
-              disabled={overlayCount === 0}
-              title="Make every overlay clickable and draggable, so they can be arranged."
-              onclick={toggleEditMode}>Edit Mode</button
+
+          <div class="setting">
+            <label for="editShortcut" class="form-label"
+              >Edit mode shortcut</label
             >
-            <button
-              class="btn btn-secondary"
-              disabled={overlayCount === 0}
-              title="Close every open overlay window."
-              onclick={() => electronAPI.requestCloseAll()}
-              >Close Overlays{#if overlayCount}<span class="count-badge"
-                  >{overlayCount}</span
-                >{/if}</button
-            >
-            <div class="dropdown">
-              <button
-                class="btn btn-purple dropdown-toggle"
-                type="button"
-                id="launchDropdown"
-                data-bs-toggle="dropdown"
-                aria-expanded="false"
-              >
-                Launch All
-              </button>
-              <ul
-                class="dropdown-menu dropdown-menu-end"
-                aria-labelledby="launchDropdown"
-              >
-                <li>
-                  <button
-                    class="dropdown-item"
-                    onclick={() => launchAll('clickable')}>Clickable</button
-                  >
-                </li>
-                <li>
-                  <button
-                    class="dropdown-item"
-                    onclick={() => launchAll('normal')}>Click-Through</button
-                  >
-                </li>
-              </ul>
+            <div class="setting-row">
+              <input
+                type="text"
+                class="form-control form-control-sm"
+                class:recording
+                id="editShortcut"
+                readonly
+                placeholder="Not set"
+                value={recording ? 'Press the keys…' : shortcut || ''}
+                onfocus={() => (recording = true)}
+                onblur={() => (recording = false)}
+                onkeydown={recordShortcut}
+              />
+              {#if settings.editModeShortcut}
+                <button
+                  class="btn btn-sm btn-secondary"
+                  onclick={() => {
+                    shortcut = '';
+                    saveShortcut();
+                  }}>Clear</button
+                >
+              {/if}
             </div>
-          </div>
-        </div>
-
-        <div class="shortcut-row">
-          <label for="editShortcut" class="form-label mb-0"
-            >Edit mode shortcut</label
-          >
-          <input
-            type="text"
-            class="form-control form-control-sm"
-            data-bs-theme="light"
-            id="editShortcut"
-            placeholder="Not set, e.g. Control+Alt+O"
-            bind:value={shortcut}
-            onchange={saveShortcut}
-          />
-          {#if settings.editModeShortcut}
-            <button
-              class="btn btn-sm btn-secondary"
-              onclick={() => {
-                shortcut = '';
-                saveShortcut();
-              }}>Clear</button
+            <small class="text-muted"
+              >Click the box and press the keys. Needs a modifier.</small
             >
-          {/if}
-        </div>
-
-        {#if fullscreenApp}
-          <div class="notice">
-            <strong>A fullscreen app is covering your overlays.</strong>
-            Windows hides every overlay while a game runs in exclusive fullscreen.
-            Switch the game to borderless, or leave Fullscreen Optimizations turned
-            on for it, and the overlays come back.
           </div>
-        {/if}
 
-        <p class="hint">
-          Drag or resize an overlay window and its position and size update
-          here, so you can save where you put it.
-        </p>
+          <div class="setting">
+            <button
+              class="btn btn-sm btn-secondary w-100"
+              onclick={() => electronAPI.requestHelp()}>Help</button
+            >
+          </div>
+        </div>
+      </div>
+    </div>
+  </header>
 
+  {#if fullscreenApp}
+    <div class="notice">
+      <strong>A fullscreen app is covering your overlays.</strong> Windows hides
+      every overlay while a game runs in exclusive fullscreen. Switch the game to
+      borderless, or leave Fullscreen Optimizations on for it.
+    </div>
+  {/if}
+
+  <div class="workspace-container">
+    {#key activeIndex}
+      {#if activeConfig}
         <ConfigEditor
           bind:config={activeConfig.config}
           uid={activeConfig.uid || ''}
@@ -194,27 +162,90 @@
         />
       {:else}
         <div class="empty-state">
-          <p class="lead">
-            Start by creating a new config file or open an existing one.
-          </p>
-          <div class="buttons">
-            <button class="btn btn-purple" onclick={newConfig}
-              >New Config File</button
-            >
-            <button
-              class="btn btn-secondary"
-              onclick={() => electronAPI.requestConfigFile()}
-              >Open Config File</button
-            >
+          <div class="empty-card">
+            <h5>No config file open</h5>
+            <p class="text-muted">
+              Create one, or open a config file you've already saved.
+            </p>
+            <div class="empty-actions">
+              <button class="btn btn-purple" onclick={newConfig}
+                >New Config File</button
+              >
+              <button
+                class="btn btn-secondary"
+                onclick={() => electronAPI.requestConfigFile()}>Open…</button
+              >
+            </div>
           </div>
-        </div>
 
-        <div class="help-panel">
-          <Help />
+          <div class="help-panel">
+            <Help />
+          </div>
         </div>
       {/if}
     {/key}
   </div>
+
+  <footer class="status-bar">
+    <div class="status-left">
+      <span class="status-item">
+        <span class="state-dot" class:running={overlayCount > 0}></span>
+        {overlayCount}
+        {overlayCount === 1 ? 'overlay' : 'overlays'} open
+      </span>
+      {#if activeConfig}
+        <span class="status-item text-muted"
+          >{unsaved ? 'Unsaved changes' : 'Saved'}</span
+        >
+      {/if}
+    </div>
+
+    <div class="status-right">
+      <button
+        class="btn btn-sm btn-secondary"
+        class:active={editMode}
+        aria-pressed={editMode}
+        disabled={overlayCount === 0}
+        title="Make every overlay clickable, so they can be dragged."
+        onclick={toggleEditMode}
+        >Edit Mode{#if settings.editModeShortcut}<span class="key-hint"
+            >{settings.editModeShortcut}</span
+          >{/if}</button
+      >
+      <button
+        class="btn btn-sm btn-secondary"
+        disabled={overlayCount === 0}
+        onclick={() => electronAPI.requestCloseAll()}>Close All</button
+      >
+      {#if activeConfig}
+        <div class="dropdown dropup">
+          <button
+            class="btn btn-sm btn-purple dropdown-toggle"
+            type="button"
+            id="launchDropdown"
+            data-bs-toggle="dropdown"
+            aria-expanded="false">Launch All</button
+          >
+          <ul
+            class="dropdown-menu dropdown-menu-end"
+            aria-labelledby="launchDropdown"
+          >
+            <li>
+              <button
+                class="dropdown-item"
+                onclick={() => launchAll('clickable')}>Clickable</button
+              >
+            </li>
+            <li>
+              <button class="dropdown-item" onclick={() => launchAll('normal')}
+                >Click-Through</button
+              >
+            </li>
+          </ul>
+        </div>
+      {/if}
+    </div>
+  </footer>
 </div>
 
 <script lang="ts">
@@ -234,6 +265,10 @@
   let activeIndex = $state(0);
   let activeConfig = $derived(configs[activeIndex]);
   let settings: Settings = $state({});
+  let unsaved = $derived(
+    !!activeConfig &&
+      JSON.stringify(activeConfig.config) !== activeConfig.origConfig,
+  );
   let isStartupConfig = $derived(
     !!activeConfig &&
       activeConfig.filename !== '' &&
@@ -245,6 +280,7 @@
   let running: WindowSource[] = $state([]);
   let displays: DisplayInfo[] = $state([]);
   let shortcut = $state('');
+  let fullscreenApp = $state(false);
 
   electronAPI.settings((_event, data) => {
     settings = data;
@@ -258,8 +294,6 @@
     running = data.running;
   });
 
-  let fullscreenApp = $state(false);
-
   electronAPI.fullscreenApp((_event, data) => {
     fullscreenApp = data.fullscreenApp;
   });
@@ -270,9 +304,8 @@
   electronAPI.requestDisplays();
 
   // Push edits to the window a config entry is already running in, so the
-  // overlay follows the editor. The JSON we last sent, and the one we last got
-  // back from a window being dragged, are both remembered, so an edit isn't
-  // echoed back and forth.
+  // overlay follows the editor. The state last exchanged with each window is
+  // remembered, so an edit isn't echoed back and forth.
   const sentConfigs: { [key: string]: string } = {};
 
   $effect(() => {
@@ -306,13 +339,23 @@
     });
   });
 
-  function toggleEditMode() {
-    electronAPI.requestEditMode({ editMode: !editMode });
-  }
+  electronAPI.windowPosition((_event, { uid, index, position }) => {
+    const container = configs.find((check) => check.uid === uid);
+    const win = container?.config[index];
 
-  function saveShortcut() {
-    electronAPI.requestSetShortcut({ accelerator: shortcut.trim() || null });
-  }
+    if (!win) {
+      return;
+    }
+
+    win.display = position.display;
+    win.x = position.x;
+    win.y = position.y;
+    win.width = position.width;
+    win.height = position.height;
+
+    // It's already where this says, so don't send it straight back.
+    sentConfigs[`${uid}:${index}`] = JSON.stringify(win);
+  });
 
   // Reopen the config files from last time. This is asked for here, rather
   // than pushed when the page loads, so nothing is sent before the handlers
@@ -334,42 +377,6 @@
 
     electronAPI.requestSetOpenFiles({ filenames });
   });
-
-  electronAPI.windowPosition((_event, { uid, index, position }) => {
-    const container = configs.find((check) => check.uid === uid);
-    const win = container?.config[index];
-
-    if (!win) {
-      return;
-    }
-
-    win.display = position.display;
-    win.x = position.x;
-    win.y = position.y;
-    win.width = position.width;
-    win.height = position.height;
-
-    // It's already where this says, so don't send it straight back.
-    sentConfigs[`${uid}:${index}`] = JSON.stringify(win);
-  });
-
-  function toggleStartupConfig() {
-    if (!activeConfig || activeConfig.filename === '') {
-      return;
-    }
-    electronAPI.requestSetDefaultConfig({
-      filename: isStartupConfig ? null : activeConfig.filename,
-    });
-  }
-
-  function launchAll(mode: 'normal' | 'clickable') {
-    electronAPI.requestLaunch({
-      config: $state.snapshot(activeConfig.config),
-      mode,
-      uid: activeConfig.uid || '',
-      indexes: activeConfig.config.map((_win, i) => i),
-    });
-  }
 
   electronAPI.configFile((_event, data) => {
     const idx = configs.findIndex((check) => data.filename === check.filename);
@@ -394,6 +401,138 @@
       configs[idx].origConfig = JSON.stringify(configs[idx].config);
     }
   });
+
+  let recording = $state(false);
+
+  // Electron accelerators for the keys that aren't just their own name.
+  const KEY_NAMES: { [key: string]: string } = {
+    ArrowUp: 'Up',
+    ArrowDown: 'Down',
+    ArrowLeft: 'Left',
+    ArrowRight: 'Right',
+    ' ': 'Space',
+    Escape: 'Esc',
+    '+': 'Plus',
+  };
+
+  function recordShortcut(event: KeyboardEvent) {
+    event.preventDefault();
+    event.stopPropagation();
+
+    if (event.key === 'Escape') {
+      (event.currentTarget as HTMLInputElement).blur();
+      return;
+    }
+
+    if (event.key === 'Backspace' || event.key === 'Delete') {
+      shortcut = '';
+      saveShortcut();
+      (event.currentTarget as HTMLInputElement).blur();
+      return;
+    }
+
+    // Wait for a key to go with the modifiers.
+    if (['Control', 'Alt', 'Shift', 'Meta'].includes(event.key)) {
+      return;
+    }
+
+    const modifiers = [
+      ...(event.ctrlKey ? ['Control'] : []),
+      ...(event.altKey ? ['Alt'] : []),
+      ...(event.shiftKey ? ['Shift'] : []),
+      ...(event.metaKey ? ['Super'] : []),
+    ];
+
+    if (!modifiers.length) {
+      // Without one, the shortcut would swallow that key everywhere.
+      return;
+    }
+
+    const key =
+      KEY_NAMES[event.key] ??
+      (event.key.length === 1 ? event.key.toUpperCase() : event.key);
+
+    shortcut = [...modifiers, key].join('+');
+    saveShortcut();
+    (event.currentTarget as HTMLInputElement).blur();
+  }
+
+  function saveShortcut() {
+    electronAPI.requestSetShortcut({ accelerator: shortcut.trim() || null });
+  }
+
+  function toggleEditMode() {
+    electronAPI.requestEditMode({ editMode: !editMode });
+  }
+
+  function toggleStartupConfig() {
+    if (!activeConfig || activeConfig.filename === '') {
+      return;
+    }
+    electronAPI.requestSetDefaultConfig({
+      filename: isStartupConfig ? null : activeConfig.filename,
+    });
+  }
+
+  function launchAll(mode: 'normal' | 'clickable') {
+    electronAPI.requestLaunch({
+      config: $state.snapshot(activeConfig.config),
+      mode,
+      uid: activeConfig.uid || '',
+      indexes: activeConfig.config.map((_win, i) => i),
+    });
+  }
+
+  function save() {
+    if (!activeConfig || activeConfig.filename === '') {
+      saveAs();
+      return;
+    }
+
+    electronAPI.requestSave({
+      config: $state.snapshot(activeConfig.config),
+      filename: activeConfig.filename,
+      uid: activeConfig.uid || '',
+    });
+  }
+
+  function saveAs() {
+    if (!activeConfig) {
+      return;
+    }
+
+    electronAPI.requestSaveAs({
+      config: $state.snapshot(activeConfig.config),
+      uid: activeConfig.uid || '',
+    });
+  }
+
+  function handleKeydown(event: KeyboardEvent) {
+    if (!event.ctrlKey && !event.metaKey) {
+      return;
+    }
+
+    switch (event.key.toLowerCase()) {
+      case 's':
+        event.preventDefault();
+        event.shiftKey ? saveAs() : save();
+        break;
+      case 'o':
+        event.preventDefault();
+        electronAPI.requestConfigFile();
+        break;
+      case 'n':
+        event.preventDefault();
+        newConfig();
+        break;
+      case 'w':
+        event.preventDefault();
+        if (configs.length) {
+          handleTabCloseClick(event, activeIndex);
+        }
+        break;
+    }
+  }
 
   function newConfig() {
     configs.push({
@@ -475,128 +614,144 @@
     display: flex;
     flex-direction: column;
     height: 100%;
-    padding: 1.25rem 1.5rem 0;
-    gap: 0.9rem;
+    min-height: 0;
+    padding: 0.75rem 0.9rem;
+    gap: 0.65rem;
   }
 
   .app-bar {
     display: flex;
-    justify-content: space-between;
     align-items: center;
-    gap: 1rem;
+    gap: 0.75rem;
+    flex-wrap: wrap;
   }
 
   .brand {
     display: flex;
     align-items: center;
-    gap: 0.75rem;
+    gap: 0.5rem;
+    flex: none;
   }
 
   .brand-mark {
     display: grid;
     place-items: center;
-    width: 2.25rem;
-    height: 2.25rem;
-    border-radius: 0.7rem;
+    width: 1.8rem;
+    height: 1.8rem;
+    border-radius: 0.55rem;
     background-color: var(--so-accent);
     color: #fff;
     font-weight: 700;
-    font-size: 0.85rem;
-    letter-spacing: 0.03em;
+    font-size: 0.72rem;
   }
 
   .brand-title {
     font-weight: 600;
-    line-height: 1.1;
-  }
-
-  .brand-subtitle {
-    font-size: 0.8rem;
-    color: var(--bs-secondary-color);
-  }
-
-  .buttons {
-    display: flex;
-    align-items: center;
-    gap: 0.6rem;
-    flex-wrap: wrap;
-  }
-
-  .toolbar {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    gap: 1rem;
-    flex-wrap: wrap;
-    padding: 0.75rem 0.9rem;
-    border: 1px solid var(--so-border);
-    border-radius: var(--so-radius);
-    background-color: var(--so-surface);
-  }
-
-  .startup-switch {
-    display: flex;
-    align-items: center;
-    gap: 0.5rem;
-    margin: 0;
-    padding-inline-start: 2.5em;
-  }
-
-  .startup-switch .form-check-label {
+    font-size: 0.95rem;
     white-space: nowrap;
   }
 
-  .launch-buttons {
-    display: flex;
-    align-items: center;
-    gap: 0.6rem;
+  .tab-strip {
+    flex: 1;
+    min-width: 0;
+    overflow-x: auto;
+    flex-wrap: nowrap;
+    white-space: nowrap;
+    overflow-y: hidden;
   }
 
-  .count-badge {
-    display: inline-block;
-    min-width: 1.35em;
-    margin-inline-start: 0.35em;
-    padding: 0.05em 0.4em;
-    border-radius: 99px;
-    background-color: var(--so-accent);
-    color: #fff;
-    font-size: 0.75em;
-    font-weight: 700;
-    line-height: 1.5;
+  .new-tab {
+    padding-inline: 0.7rem;
+    font-weight: 600;
+  }
+
+  .bar-actions {
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+    flex: none;
+  }
+
+  .settings-menu {
+    width: min(20rem, calc(100vw - 2rem));
+    padding: 0.75rem;
+  }
+
+  .setting + .setting {
+    margin-top: 0.9rem;
+    padding-top: 0.9rem;
+    border-top: 1px solid var(--so-border);
+  }
+
+  .setting-row {
+    display: flex;
+    gap: 0.4rem;
+    align-items: center;
+  }
+
+  .setting-row .form-control.recording {
+    border-color: var(--so-accent);
+    box-shadow: 0 0 0 3px var(--so-accent-soft);
+  }
+
+  .workspace-container {
+    flex: 1;
+    min-height: 0;
   }
 
   .notice {
-    margin-top: 0.75rem;
-    padding: 0.7rem 0.9rem;
+    padding: 0.6rem 0.8rem;
     border: 1px solid var(--so-accent);
     border-radius: var(--so-radius-sm);
     background-color: var(--so-accent-soft);
-    font-size: 0.9rem;
+    font-size: 0.88rem;
   }
 
-  .shortcut-row {
+  .status-bar {
     display: flex;
     align-items: center;
-    gap: 0.6rem;
-    margin-top: 0.75rem;
+    justify-content: space-between;
     flex-wrap: wrap;
-  }
-
-  .shortcut-row .form-control {
-    max-width: 18rem;
-  }
-
-  .hint {
-    margin: 0.75rem 0 0;
+    gap: 0.5rem 0.75rem;
+    flex: none;
+    padding: 0.45rem 0.6rem;
+    border: 1px solid var(--so-border);
+    border-radius: var(--so-radius);
+    background-color: var(--so-surface);
     font-size: 0.85rem;
+  }
+
+  .status-left,
+  .status-right {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+  }
+
+  .status-item {
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
     color: var(--bs-secondary-color);
   }
 
-  .tab-container {
-    flex-basis: 0;
-    flex-grow: 1;
-    overflow-y: auto;
-    padding-bottom: 1.5rem;
+  .state-dot {
+    width: 0.5rem;
+    height: 0.5rem;
+    border-radius: 50%;
+    background-color: var(--so-border);
+  }
+  .state-dot.running {
+    background-color: #2ec27e;
+  }
+
+  .key-hint {
+    margin-inline-start: 0.4rem;
+    padding: 0.05rem 0.35rem;
+    border: 1px solid var(--so-border);
+    border-radius: 0.35rem;
+    font-size: 0.72em;
+    color: var(--bs-secondary-color);
   }
 
   .unsaved-dot {
@@ -623,23 +778,57 @@
   }
 
   .empty-state {
+    height: 100%;
+    overflow-y: auto;
+  }
+
+  .empty-card {
     display: flex;
     flex-direction: column;
     align-items: center;
-    gap: 1rem;
-    padding: 2.5rem 1rem;
+    gap: 0.6rem;
+    padding: 2rem 1rem;
     border: 1px dashed var(--so-border);
     border-radius: var(--so-radius);
     background-color: var(--so-surface);
     text-align: center;
   }
 
-  .empty-state .lead {
+  .empty-card p {
     margin: 0;
   }
 
+  .empty-actions {
+    display: flex;
+    gap: 0.6rem;
+  }
+
+  /* The bar gives up the brand, then the tab row, as space runs out. */
+  @media (max-width: 900px) {
+    .brand-title {
+      display: none;
+    }
+  }
+
+  @media (max-width: 760px) {
+    .editor-container {
+      padding: 0.5rem 0.55rem;
+      gap: 0.5rem;
+    }
+    .tab-strip {
+      order: 3;
+      flex-basis: 100%;
+    }
+    .bar-actions {
+      margin-inline-start: auto;
+    }
+    .status-bar {
+      font-size: 0.8rem;
+    }
+  }
+
   .help-panel {
-    margin-top: 1.5rem;
+    margin-top: 1rem;
     padding: 1.25rem 1.5rem;
     border: 1px solid var(--so-border);
     border-radius: var(--so-radius);

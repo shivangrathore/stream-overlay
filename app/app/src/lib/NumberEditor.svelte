@@ -3,7 +3,6 @@
     <input
       type="text"
       class="form-control"
-      data-bs-theme="light"
       id="value{i}"
       bind:value
       placeholder="15.0%"
@@ -16,7 +15,6 @@
     <input
       type="number"
       class="form-control"
-      data-bs-theme="light"
       id="value{i}"
       min={allowNegative ? undefined : 0}
       bind:value

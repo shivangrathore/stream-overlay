@@ -2,8 +2,7 @@
   <label for="title{i}" class="form-label">Title</label>
   <input
     type="text"
-    class="form-control"
-    data-bs-theme="light"
+    class="form-control form-control-sm"
     id="title{i}"
     bind:value={win.title}
   />
@@ -22,16 +21,14 @@
     {#if showUrl}
       <input
         type="text"
-        class="form-control"
-        data-bs-theme="light"
+        class="form-control form-control-sm"
         id="url{i}"
         bind:value={win.url}
       />
     {:else}
       <input
         type="password"
-        class="form-control"
-        data-bs-theme="light"
+        class="form-control form-control-sm"
         id="url{i}"
         bind:value={win.url}
       />
@@ -49,17 +46,31 @@
 
   <div class="field">
     <label for="display{i}" class="form-label">Display</label>
-    <input
-      type="number"
-      class="form-control"
-      data-bs-theme="light"
-      id="display{i}"
-      min={0}
-      max={9}
-      step={1}
-      bind:value={win.display}
-    />
-    <small class="form-text text-muted">0 means primary monitor.</small>
+    {#if displays.length}
+      <select
+        class="form-select form-select-sm"
+        id="display{i}"
+        bind:value={win.display}
+      >
+        {#each displays as display}
+          <option value={display.value}
+            >{display.label} · {display.bounds.width}×{display.bounds
+              .height}{display.primary ? ' · primary' : ''}</option
+          >
+        {/each}
+      </select>
+    {:else}
+      <input
+        type="number"
+        class="form-control form-control-sm"
+        id="display{i}"
+        min={0}
+        max={9}
+        step={1}
+        bind:value={win.display}
+      />
+      <small class="form-text text-muted">0 means primary monitor.</small>
+    {/if}
   </div>
 
   <div class="switches">
@@ -167,8 +178,7 @@
     <div class="input-group">
       <input
         type="number"
-        class="form-control"
-        data-bs-theme="light"
+        class="form-control form-control-sm"
         id="scale{i}"
         min={0.3}
         max={5}
@@ -203,13 +213,15 @@
 </script>
 
 <script lang="ts">
-  import type { Conf, XAlign, YAlign } from '$lib/Conf';
+  import type { Conf, DisplayInfo, XAlign, YAlign } from '$lib/Conf';
   import NumberEditor from '$lib/NumberEditor.svelte';
 
   let {
     win = $bindable(),
+    displays = [],
   }: {
     win: Conf;
+    displays?: DisplayInfo[];
   } = $props();
 
   const xAligns: XAlign[] = ['left', 'center', 'right'];
@@ -253,7 +265,7 @@
 
 <style>
   .field {
-    margin-bottom: 0.9rem;
+    margin-bottom: 0.75rem;
   }
 
   .section {
@@ -263,12 +275,12 @@
   }
 
   .section-label {
-    font-size: 0.78rem;
+    font-size: 0.72rem;
     font-weight: 600;
-    letter-spacing: 0.04em;
+    letter-spacing: 0.05em;
     text-transform: uppercase;
     color: var(--bs-secondary-color);
-    margin-bottom: 0.6rem;
+    margin-bottom: 0.5rem;
   }
 
   .switches {

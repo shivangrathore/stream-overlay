@@ -1187,9 +1187,6 @@ const launchConfigFile = (filename: string): Conf[] | undefined => {
     if (!Array.isArray(userConfig)) {
       throw new Error('Config is not an array.');
     }
-    if (userConfig.length < 1) {
-      throw new Error('Config array is empty.');
-    }
     for (let entry of userConfig) {
       const { url } = entry;
       if (typeof url !== 'string') {
@@ -1211,8 +1208,10 @@ const launchConfigFile = (filename: string): Conf[] | undefined => {
 
     return entries;
   } catch (e: any) {
+    // A config that can't be read is worth complaining about, but it must not
+    // take the app down with it: the editor is how it gets fixed.
     dialog.showErrorBox('Error reading config file.', e.message);
-    app.exit(1);
+    return undefined;
   }
 };
 

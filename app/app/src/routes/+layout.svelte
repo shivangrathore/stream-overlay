@@ -1,7 +1,3 @@
-<svelte:head>
-  <link rel="stylesheet" href="{assets}/bootstrap.min.css" />
-</svelte:head>
-
 <div class="app-shell">
   {@render children?.()}
 </div>
@@ -11,7 +7,6 @@
 <script lang="ts">
   import type { Snippet } from 'svelte';
   import Bootstrap from './_bootstrap.svelte';
-  import { assets } from '$app/paths';
 
   if (typeof window !== 'undefined' && window.matchMedia) {
     if (window.matchMedia('(prefers-color-scheme: dark)').matches) {
@@ -42,9 +37,10 @@
   }
 
   :global(:root) {
-    --so-accent: #7c5cff;
-    --so-accent-strong: #6a48f5;
-    --so-accent-soft: rgba(124, 92, 255, 0.12);
+    --so-accent: #6d4aff;
+    --so-accent-strong: #5a35f0;
+    --so-accent-soft: rgba(109, 74, 255, 0.1);
+    --so-good: #2ea86b;
     --so-radius: 0.85rem;
     --so-radius-sm: 0.55rem;
     --so-surface: #ffffff;
@@ -57,12 +53,15 @@
   }
 
   :global([data-bs-theme='dark']) {
-    --so-accent: #9b83ff;
-    --so-accent-strong: #8468ff;
-    --so-accent-soft: rgba(155, 131, 255, 0.16);
-    --so-surface: #1b1c25;
-    --so-surface-sunken: #14151c;
-    --so-border: rgba(255, 255, 255, 0.1);
+    --so-accent: #9d86ff;
+    --so-accent-strong: #b1a0ff;
+    --so-accent-soft: rgba(157, 134, 255, 0.14);
+    --so-good: #3ddc97;
+    --so-surface: #1a1b23;
+    --so-surface-sunken: #101117;
+    --so-border: rgba(255, 255, 255, 0.08);
+    --bs-body-color: #e7e7ee;
+    --bs-secondary-color: #9a9aad;
     --so-shadow: 0 1px 2px rgba(0, 0, 0, 0.4), 0 8px 24px rgba(0, 0, 0, 0.35);
     --so-shadow-hover:
       0 2px 4px rgba(0, 0, 0, 0.45), 0 16px 32px rgba(0, 0, 0, 0.45);
@@ -144,7 +143,7 @@
   }
 
   :global(.btn-secondary) {
-    --bs-btn-bg: transparent;
+    --bs-btn-bg: transparent !important;
     --bs-btn-border-color: var(--so-border);
     --bs-btn-color: var(--bs-body-color);
     --bs-btn-hover-bg: var(--so-accent-soft);
@@ -155,6 +154,33 @@
     --bs-btn-active-color: var(--bs-body-color);
     --bs-btn-disabled-bg: transparent;
     --bs-btn-disabled-border-color: var(--so-border);
+    --bs-btn-disabled-color: var(--bs-secondary-color);
+  }
+
+  :global(.btn-secondary.active),
+  :global(.btn-secondary[aria-pressed='true']) {
+    --bs-btn-bg: var(--so-accent-soft) !important;
+    --bs-btn-border-color: var(--so-accent);
+    --bs-btn-color: var(--bs-body-color);
+  }
+
+  :global(.btn-check:focus + .btn),
+  :global(.btn:focus) {
+    box-shadow: none;
+  }
+
+  /* Inputs sit on the sunken tone, so fields read as fields in both themes. */
+  :global(.form-control),
+  :global(.form-select) {
+    background-color: var(--so-surface-sunken);
+  }
+  :global(.form-control:focus),
+  :global(.form-select:focus) {
+    background-color: var(--so-surface-sunken);
+  }
+  :global(.input-group-text) {
+    background-color: var(--so-surface-sunken);
+    color: var(--bs-secondary-color);
   }
 
   /* Cards */
@@ -197,29 +223,55 @@
     border-color: var(--so-accent);
     box-shadow: 0 0 0 3px var(--so-accent-soft);
   }
+  :global(.form-range) {
+    accent-color: var(--so-accent);
+  }
   :global(.form-range::-webkit-slider-thumb) {
     background-color: var(--so-accent);
   }
-  :global(.form-label),
+  :global(.form-range::-moz-range-thumb) {
+    background-color: var(--so-accent);
+    border-color: var(--so-accent);
+  }
+  :global(.form-range::-webkit-slider-runnable-track) {
+    background-color: var(--so-border);
+  }
+  :global(.form-label) {
+    font-size: 0.82rem;
+    font-weight: 500;
+    color: var(--bs-secondary-color);
+    margin-bottom: 0.25rem;
+  }
+
   :global(.section-label) {
-    font-size: 0.78rem;
+    font-size: 0.72rem;
     font-weight: 600;
-    letter-spacing: 0.04em;
+    letter-spacing: 0.05em;
     text-transform: uppercase;
     color: var(--bs-secondary-color);
-    margin-bottom: 0.35rem;
+    margin-bottom: 0.4rem;
+  }
+
+  :global(.form-control-sm),
+  :global(.form-select-sm) {
+    font-size: 0.85rem;
   }
 
   /* Tabs, rendered as pills. */
   :global(.nav-tabs) {
-    border-bottom: none;
-    gap: 0.35rem;
+    border-bottom: none !important;
+    gap: 0.3rem;
   }
   :global(.nav-tabs .nav-link) {
+    display: flex;
+    align-items: center;
+    gap: 0.15rem;
     border: 1px solid transparent !important;
     border-radius: 99px !important;
     color: var(--bs-secondary-color);
-    padding: 0.35rem 0.9rem;
+    padding: 0.3rem 0.5rem 0.3rem 0.85rem;
+    font-size: 0.88rem;
+    margin-bottom: 0 !important;
   }
   :global(.nav-tabs .nav-link:hover) {
     background-color: var(--so-accent-soft);
