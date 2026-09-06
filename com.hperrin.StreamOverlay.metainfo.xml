@@ -24,6 +24,11 @@
   <developer_name>Hunter Perrin</developer_name>
 
   <releases>
+    <release version="6.3.2" date="2026-09-06">
+      <description>
+        <p>The Windows build ships the binding the fullscreen check needs.</p>
+      </description>
+    </release>
     <release version="6.3.1" date="2026-09-06">
       <description>
         <p>Overlays no longer take focus away from the game underneath them.</p>
