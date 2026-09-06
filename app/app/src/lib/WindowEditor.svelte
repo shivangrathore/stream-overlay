@@ -1,4 +1,4 @@
-<div class="mb-3">
+<div class="field">
   <label for="title{i}" class="form-label">Title</label>
   <input
     type="text"
@@ -8,7 +8,8 @@
     bind:value={win.title}
   />
 </div>
-<div class="mb-3">
+
+<div class="field">
   <label for="url{i}" class="form-label"
     >URL{#if win.url.includes('YOURSECRETCODE')}&nbsp;<span
         tabindex="0"
@@ -35,68 +36,166 @@
         bind:value={win.url}
       />
     {/if}
-    <button class="input-group-text" onclick={() => (showUrl = !showUrl)}
-      >👀</button
+    <button
+      class="input-group-text"
+      title={showUrl ? 'Hide URL' : 'Show URL'}
+      onclick={() => (showUrl = !showUrl)}>👀</button
     >
   </div>
 </div>
 
-<h5>Position</h5>
+<div class="section">
+  <div class="section-label">Position</div>
 
-<h6>Display</h6>
-<div class="mb-3">
-  <input
-    type="number"
-    class="form-control"
-    data-bs-theme="light"
-    id="display{i}"
-    min={0}
-    max={9}
-    step={1}
-    bind:value={win.display}
-  />
-  <small class="form-text text-muted">0 means primary monitor.</small>
+  <div class="field">
+    <label for="display{i}" class="form-label">Display</label>
+    <input
+      type="number"
+      class="form-control"
+      data-bs-theme="light"
+      id="display{i}"
+      min={0}
+      max={9}
+      step={1}
+      bind:value={win.display}
+    />
+    <small class="form-text text-muted">0 means primary monitor.</small>
+  </div>
+
+  <div class="switches">
+    <div class="form-check form-switch">
+      <input
+        type="checkbox"
+        role="switch"
+        class="form-check-input"
+        id="fullscreen{i}"
+        bind:checked={win.fullscreen}
+      />
+      <label for="fullscreen{i}" class="form-check-label">Fullscreen</label>
+    </div>
+
+    <div class="form-check form-switch">
+      <input
+        type="checkbox"
+        role="switch"
+        class="form-check-input"
+        id="coverTaskbar{i}"
+        bind:checked={win.coverTaskbar}
+      />
+      <label for="coverTaskbar{i}" class="form-check-label"
+        >Cover taskbar (use whole display)</label
+      >
+    </div>
+  </div>
+
+  {#if !win.fullscreen}
+    <div class="align-row">
+      <div class="align-grid">
+        {#each yAligns as yAlign}
+          {#each xAligns as xAlign}
+            <button
+              type="button"
+              class="align-button"
+              class:active={win.xAlign === xAlign && win.yAlign === yAlign}
+              title="{alignLabels[yAlign]} {alignLabels[xAlign]}"
+              aria-label="{alignLabels[yAlign]} {alignLabels[xAlign]}"
+              aria-pressed={win.xAlign === xAlign && win.yAlign === yAlign}
+              onclick={() => setAlign(xAlign, yAlign)}
+              >{alignIcons[`${xAlign} ${yAlign}`]}</button
+            >
+          {/each}
+        {/each}
+      </div>
+      <div class="align-info">
+        <div class="align-current">
+          {alignLabels[win.yAlign ?? 'top']}
+          {alignLabels[win.xAlign ?? 'left']}
+        </div>
+        <small class="text-muted"
+          >Offsets are measured inward from the edge you pick.</small
+        >
+        <button
+          type="button"
+          class="btn btn-sm btn-secondary"
+          onclick={fillScreen}>Fill screen area</button
+        >
+      </div>
+    </div>
+
+    <div class="pair">
+      <div class="field">
+        <span class="form-label"
+          >X offset ({win.xAlign === 'right'
+            ? 'from right'
+            : win.xAlign === 'center'
+              ? 'from center'
+              : 'from left'})</span
+        >
+        <NumberEditor bind:value={win.x} allowNegative />
+      </div>
+      <div class="field">
+        <span class="form-label"
+          >Y offset ({win.yAlign === 'bottom'
+            ? 'from bottom'
+            : win.yAlign === 'center'
+              ? 'from center'
+              : 'from top'})</span
+        >
+        <NumberEditor bind:value={win.y} allowNegative />
+      </div>
+    </div>
+
+    <div class="section-label">Size</div>
+    <div class="pair">
+      <div class="field">
+        <span class="form-label">Width</span>
+        <NumberEditor bind:value={win.width} />
+      </div>
+      <div class="field">
+        <span class="form-label">Height</span>
+        <NumberEditor bind:value={win.height} />
+      </div>
+    </div>
+  {/if}
 </div>
 
-<div class="mb-3 form-check form-switch">
-  <input
-    type="checkbox"
-    role="switch"
-    class="form-check-input"
-    id="fullscreen{i}"
-    bind:checked={win.fullscreen}
-  />
-  <label for="fullscreen{i}" class="form-check-label">Fullscreen</label>
-</div>
+<div class="section">
+  <div class="section-label">Appearance</div>
 
-{#if !win.fullscreen}
-  <h6>Horizontal (X)</h6>
-  <NumberEditor bind:value={win.x} allowCentered />
+  <div class="field">
+    <label for="scale{i}" class="form-label">Scale</label>
+    <div class="input-group">
+      <input
+        type="number"
+        class="form-control"
+        data-bs-theme="light"
+        id="scale{i}"
+        min={0.3}
+        max={5}
+        step={0.1}
+        bind:value={win.scale}
+      />
+      <span class="input-group-text">{Math.round((win.scale ?? 1) * 100)}%</span
+      >
+    </div>
+  </div>
 
-  <h6>Vertical (Y)</h6>
-  <NumberEditor bind:value={win.y} allowCentered />
-
-  <h5>Size</h5>
-
-  <h6>Width</h6>
-  <NumberEditor bind:value={win.width} />
-
-  <h6>Height</h6>
-  <NumberEditor bind:value={win.height} />
-{/if}
-
-<h5>Scale</h5>
-<div class="mb-3">
-  <input
-    type="number"
-    class="form-control"
-    data-bs-theme="light"
-    id="scale{i}"
-    min={0.3}
-    max={5}
-    step={0.1}
-    bind:value={win.scale}
-  />
+  <div class="field">
+    <label for="opacity{i}" class="form-label">Opacity</label>
+    <div class="range-row">
+      <input
+        type="range"
+        class="form-range"
+        id="opacity{i}"
+        min={0.1}
+        max={1}
+        step={0.05}
+        bind:value={win.opacity}
+      />
+      <span class="range-value">{Math.round((win.opacity ?? 1) * 100)}%</span>
+    </div>
+    <small class="form-text text-muted">Doesn't work on Linux.</small>
+  </div>
 </div>
 
 <script lang="ts" module>
@@ -104,7 +203,7 @@
 </script>
 
 <script lang="ts">
-  import type { Conf } from '$lib/Conf';
+  import type { Conf, XAlign, YAlign } from '$lib/Conf';
   import NumberEditor from '$lib/NumberEditor.svelte';
 
   let {
@@ -113,6 +212,140 @@
     win: Conf;
   } = $props();
 
+  const xAligns: XAlign[] = ['left', 'center', 'right'];
+  const yAligns: YAlign[] = ['top', 'center', 'bottom'];
+  const alignLabels: { [k in XAlign | YAlign]: string } = {
+    left: 'Left',
+    center: 'Center',
+    right: 'Right',
+    top: 'Top',
+    bottom: 'Bottom',
+  };
+  const alignIcons: { [k: string]: string } = {
+    'left top': '↖',
+    'center top': '↑',
+    'right top': '↗',
+    'left center': '←',
+    'center center': '⧉',
+    'right center': '→',
+    'left bottom': '↙',
+    'center bottom': '↓',
+    'right bottom': '↘',
+  };
+
   let showUrl = $state(false);
   let i = counter++;
+
+  function setAlign(xAlign: XAlign, yAlign: YAlign) {
+    win.xAlign = xAlign;
+    win.yAlign = yAlign;
+  }
+
+  function fillScreen() {
+    win.xAlign = 'left';
+    win.yAlign = 'top';
+    win.x = 0;
+    win.y = 0;
+    win.width = '100%';
+    win.height = '100%';
+  }
 </script>
+
+<style>
+  .field {
+    margin-bottom: 0.9rem;
+  }
+
+  .section {
+    margin-top: 1.1rem;
+    padding-top: 0.9rem;
+    border-top: 1px solid var(--so-border);
+  }
+
+  .section-label {
+    font-size: 0.78rem;
+    font-weight: 600;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    color: var(--bs-secondary-color);
+    margin-bottom: 0.6rem;
+  }
+
+  .switches {
+    display: flex;
+    flex-direction: column;
+    gap: 0.35rem;
+    margin-bottom: 0.9rem;
+  }
+
+  .pair {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(9rem, 1fr));
+    gap: 0.75rem;
+  }
+
+  .align-row {
+    display: flex;
+    align-items: flex-start;
+    gap: 0.9rem;
+    margin-bottom: 1rem;
+  }
+
+  .align-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 2.3rem);
+    grid-auto-rows: 2.3rem;
+    gap: 0.3rem;
+    flex: none;
+  }
+
+  .align-button {
+    display: grid;
+    place-items: center;
+    border: 1px solid var(--so-border);
+    border-radius: 0.5rem;
+    background-color: transparent;
+    color: var(--bs-secondary-color);
+    font-size: 1rem;
+    line-height: 1;
+    transition:
+      background-color 0.12s ease,
+      border-color 0.12s ease,
+      color 0.12s ease;
+  }
+  .align-button:hover {
+    border-color: var(--so-accent);
+    color: var(--bs-body-color);
+  }
+  .align-button.active {
+    background-color: var(--so-accent);
+    border-color: var(--so-accent);
+    color: #fff;
+  }
+
+  .align-info {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 0.35rem;
+    min-width: 0;
+  }
+
+  .align-current {
+    font-weight: 600;
+  }
+
+  .range-row {
+    display: flex;
+    align-items: center;
+    gap: 0.6rem;
+  }
+
+  .range-value {
+    flex: none;
+    min-width: 3rem;
+    text-align: end;
+    font-variant-numeric: tabular-nums;
+    color: var(--bs-secondary-color);
+  }
+</style>

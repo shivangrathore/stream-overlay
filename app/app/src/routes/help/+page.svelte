@@ -28,6 +28,48 @@
   editor.
 </p>
 
+<h2>Startup Config</h2>
+
+<p>
+  Turn on "Launch on startup" for a saved config file, and Stream Overlay will
+  open those overlays by itself the next time it starts, so you don't have to
+  open the config file every time. Turn it off to go back to opening the config
+  editor at startup. Opening a config file from your file manager, or passing
+  one on the command line, still takes precedence.
+</p>
+
+<h2>Moving and Resizing</h2>
+
+<p>
+  Focus an overlay window from the tray menu, then drag it by its handle or drag
+  its edges to resize it. While the config editor is open, the window's position
+  and size are written back into the config it was launched from, so you can
+  save the layout you just arranged instead of typing in numbers.
+</p>
+
+<h2>Positioning</h2>
+
+<p>
+  Each window is placed against an edge or the center of the display. Pick a
+  spot in the "Align To" grid (top left, top center, top right, and so on), then
+  set the horizontal and vertical offsets. Offsets are measured inward from the
+  edge you aligned to, so a right aligned window with an X offset of 20 sits 20
+  pixels from the right edge of the display, and a bottom aligned window with a
+  Y offset of 0 sits flush against the bottom.
+</p>
+
+<p>
+  For a centered alignment, the offset nudges the window away from the center.
+  Offsets and sizes can both be given in pixels or as a percent of the display,
+  and the "Fill screen area" button sets the window to cover the whole display.
+</p>
+
+<p>
+  By default, windows stay inside the work area, so they don't cover your
+  taskbar or panels. Turn on "Use whole display" to position and size the window
+  against the full display instead.
+</p>
+
 <h2>Interaction</h2>
 
 <p>

@@ -1,4 +1,4 @@
-import type { Conf, ConfContainer } from './Conf';
+import type { Conf, ConfContainer, Settings, WindowPosition } from './Conf';
 
 const electronAPI =
   typeof window === 'object'
@@ -19,6 +19,8 @@ const electronAPI =
             requestLaunch(data: {
               config: Conf[];
               mode: 'normal' | 'clickable';
+              uid: string;
+              indexes: number[];
             }): void;
             saved(
               callback: (
@@ -26,6 +28,12 @@ const electronAPI =
                 data: { filename: string; basename: string; uid: string },
               ) => void,
             ): void;
+            settings(callback: (event: any, data: Settings) => void): void;
+            windowPosition(
+              callback: (event: any, data: WindowPosition) => void,
+            ): void;
+            requestSettings(): void;
+            requestSetDefaultConfig(data: { filename: string | null }): void;
           };
         }
       ).electronAPI
@@ -42,6 +50,8 @@ const electronAPI =
         requestLaunch(_data: {
           config: Conf[];
           mode: 'normal' | 'clickable';
+          uid: string;
+          indexes: number[];
         }) {},
         saved(
           _callback: (
@@ -49,6 +59,12 @@ const electronAPI =
             data: { filename: string; basename: string; uid: string },
           ) => void,
         ) {},
+        settings(_callback: (event: any, data: Settings) => void) {},
+        windowPosition(
+          _callback: (event: any, data: WindowPosition) => void,
+        ) {},
+        requestSettings() {},
+        requestSetDefaultConfig(_data: { filename: string | null }) {},
       };
 
 export default electronAPI;

@@ -1,106 +1,115 @@
-<div
-  style="display: flex; flex-wrap: wrap; align-items: stretch; gap: 1em; margin: 1em 0;"
->
+<div class="window-grid">
   {#each config as win, i}
-    <div class="card" style="width: 360px;">
-      <div
-        class="card-header"
-        style="display: flex; justify-content: space-between; align-items: center;"
-      >
-        <span>{win.title}</span>
+    <div class="card window-card">
+      <div class="card-header">
+        <div class="window-name">
+          <span class="window-index">{i + 1}</span>
+          <span class="window-title" title={win.title}>{win.title}</span>
+        </div>
         <div class="dropdown">
           <button
-            class="btn btn-purple dropdown-toggle"
+            class="btn btn-sm btn-purple dropdown-toggle"
             type="button"
-            id="launchDropdown"
+            id="launchDropdown{i}"
             data-bs-toggle="dropdown"
             aria-expanded="false"
           >
             Launch
           </button>
-          <ul class="dropdown-menu" aria-labelledby="launchDropdown">
+          <ul
+            class="dropdown-menu dropdown-menu-end"
+            aria-labelledby="launchDropdown{i}"
+          >
             <li>
               <button
                 class="dropdown-item"
-                onclick={() =>
-                  electronAPI.requestLaunch({
-                    config: [$state.snapshot(win)],
-                    mode: 'clickable',
-                  })}>Clickable</button
+                onclick={() => launch(i, 'clickable')}>Clickable</button
               >
             </li>
             <li>
-              <button
-                class="dropdown-item"
-                onclick={() =>
-                  electronAPI.requestLaunch({
-                    config: [$state.snapshot(win)],
-                    mode: 'normal',
-                  })}>Click-Through</button
+              <button class="dropdown-item" onclick={() => launch(i, 'normal')}
+                >Click-Through</button
               >
             </li>
           </ul>
         </div>
       </div>
-      <div
-        class="card-body"
-        style="display: flex; flex-direction: column; justify-content: space-between;"
-      >
+      <div class="card-body window-body">
         <div class="card-text">
           <WindowEditor bind:win={config[i]} />
         </div>
-        <div style="display: flex; justify-content: space-between;">
-          <div>
+        <div class="card-actions">
+          <div class="reorder">
             <button
-              class="btn btn-secondary"
+              class="btn btn-sm btn-secondary"
               title="Move left"
+              aria-label="Move left"
               disabled={i === 0}
               onclick={() => moveLeft(i)}>&lt;</button
             >
             <button
-              class="btn btn-secondary"
+              class="btn btn-sm btn-secondary"
               title="Move right"
+              aria-label="Move right"
               disabled={i === config.length - 1}
               onclick={() => moveRight(i)}>&gt;</button
             >
           </div>
-          <button class="btn btn-danger" onclick={() => removeWindow(i)}
-            >Remove</button
+          <button
+            class="btn btn-sm btn-outline-danger"
+            onclick={() => removeWindow(i)}>Remove</button
           >
         </div>
       </div>
     </div>
-  {:else}
-    <div class="m-3">No windows yet.</div>
   {/each}
-</div>
-<div>
-  <button class="btn btn-primary" onclick={addWindow}>Add Window</button>
+
+  <button class="add-card" onclick={addWindow}>
+    <span class="add-mark">+</span>
+    <span>Add Window</span>
+  </button>
 </div>
 
 <script lang="ts">
-  import type { Conf } from '$lib/Conf';
+  import { normalizeConf, type Conf } from '$lib/Conf';
   import electronAPI from '$lib/electronAPI';
   import WindowEditor from '$lib/WindowEditor.svelte';
 
   let {
     config = $bindable(),
+    uid = '',
   }: {
     config: Conf[];
+    uid?: string;
   } = $props();
 
-  function addWindow() {
-    config.push({
-      title: 'Untitled Window',
-      url: 'https://example.com/',
-      display: 0,
-      fullscreen: false,
-      x: -1,
-      y: -1,
-      width: 500,
-      height: 500,
-      scale: 1,
+  function launch(i: number, mode: 'normal' | 'clickable') {
+    electronAPI.requestLaunch({
+      config: [$state.snapshot(config[i])],
+      mode,
+      uid,
+      indexes: [i],
     });
+  }
+
+  function addWindow() {
+    config.push(
+      normalizeConf({
+        title: 'Untitled Window',
+        url: 'https://example.com/',
+        display: 0,
+        fullscreen: false,
+        coverTaskbar: false,
+        xAlign: 'center',
+        yAlign: 'center',
+        x: 0,
+        y: 0,
+        width: 500,
+        height: 500,
+        scale: 1,
+        opacity: 1,
+      }),
+    );
     config = config;
   }
 
@@ -121,3 +130,108 @@
     config = config;
   }
 </script>
+
+<style>
+  .window-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+    align-items: stretch;
+    gap: 1rem;
+    margin: 1rem 0;
+  }
+
+  .window-card {
+    overflow: hidden;
+  }
+
+  .window-card .card-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 0.75rem;
+  }
+
+  .window-name {
+    display: flex;
+    align-items: center;
+    gap: 0.6rem;
+    min-width: 0;
+  }
+
+  .window-index {
+    display: grid;
+    place-items: center;
+    flex: none;
+    width: 1.6rem;
+    height: 1.6rem;
+    border-radius: 0.5rem;
+    background-color: var(--so-accent-soft);
+    color: var(--so-accent);
+    font-size: 0.8rem;
+    font-weight: 700;
+  }
+
+  .window-title {
+    font-weight: 600;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .window-body {
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    gap: 1rem;
+  }
+
+  .card-actions {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 0.5rem;
+    padding-top: 0.75rem;
+    border-top: 1px solid var(--so-border);
+  }
+
+  .reorder {
+    display: flex;
+    gap: 0.4rem;
+  }
+
+  .add-card {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 0.6rem;
+    min-height: 12rem;
+    padding: 2rem 1rem;
+    border: 1px dashed var(--so-border);
+    border-radius: var(--so-radius);
+    background-color: transparent;
+    color: var(--bs-secondary-color);
+    font-weight: 600;
+    transition:
+      border-color 0.15s ease,
+      color 0.15s ease,
+      background-color 0.15s ease;
+  }
+  .add-card:hover {
+    border-color: var(--so-accent);
+    background-color: var(--so-accent-soft);
+    color: var(--bs-body-color);
+  }
+
+  .add-mark {
+    display: grid;
+    place-items: center;
+    width: 2.5rem;
+    height: 2.5rem;
+    border-radius: 50%;
+    background-color: var(--so-accent);
+    color: #fff;
+    font-size: 1.5rem;
+    line-height: 1;
+  }
+</style>
