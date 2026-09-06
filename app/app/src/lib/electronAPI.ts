@@ -1,4 +1,11 @@
-import type { Conf, ConfContainer, Settings, WindowPosition } from './Conf';
+import type {
+  Conf,
+  ConfContainer,
+  DisplayInfo,
+  Overlays,
+  Settings,
+  WindowPosition,
+} from './Conf';
 
 const electronAPI =
   typeof window === 'object'
@@ -36,10 +43,18 @@ const electronAPI =
             requestCloseAll(): void;
             requestRestoreFiles(): void;
             restored(callback: (event: any) => void): void;
+            displays(callback: (event: any, data: DisplayInfo[]) => void): void;
+            requestDisplays(): void;
+            requestEditMode(data: { editMode: boolean }): void;
+            requestSetShortcut(data: { accelerator: string | null }): void;
+            requestCloseWindow(data: { uid: string; index: number }): void;
+            requestUpdateWindow(data: {
+              uid: string;
+              index: number;
+              config: Conf;
+            }): void;
             requestSetOpenFiles(data: { filenames: string[] }): void;
-            overlays(
-              callback: (event: any, data: { count: number }) => void,
-            ): void;
+            overlays(callback: (event: any, data: Overlays) => void): void;
             requestSetDefaultConfig(data: { filename: string | null }): void;
           };
         }
@@ -74,8 +89,18 @@ const electronAPI =
         requestCloseAll() {},
         requestRestoreFiles() {},
         restored(_callback: (event: any) => void) {},
+        displays(_callback: (event: any, data: DisplayInfo[]) => void) {},
+        requestDisplays() {},
+        requestEditMode(_data: { editMode: boolean }) {},
+        requestSetShortcut(_data: { accelerator: string | null }) {},
+        requestCloseWindow(_data: { uid: string; index: number }) {},
+        requestUpdateWindow(_data: {
+          uid: string;
+          index: number;
+          config: Conf;
+        }) {},
         requestSetOpenFiles(_data: { filenames: string[] }) {},
-        overlays(_callback: (event: any, data: { count: number }) => void) {},
+        overlays(_callback: (event: any, data: Overlays) => void) {},
         requestSetDefaultConfig(_data: { filename: string | null }) {},
       };
 

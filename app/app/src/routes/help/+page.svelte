@@ -43,6 +43,31 @@
   second time brings that editor up instead of running a second copy.
 </p>
 
+<h2>Arranging Windows</h2>
+
+<p>
+  The config editor draws your displays with every window of the open config on
+  them. Drag a window to place it, drag its bottom right corner to resize it,
+  and use the arrow keys to nudge the selected one (hold Shift for 10 pixels at
+  a time). Windows snap to the edges and the middle of a display, and dragging
+  one onto another display changes which display it opens on.
+</p>
+
+<p>
+  Windows that are already open follow along as you edit them, so there's no
+  need to relaunch to see a change. Open windows are marked with a green dot in
+  the editor, and can be closed one at a time or all at once.
+</p>
+
+<h2>Edit Mode</h2>
+
+<p>
+  Overlays are click-through, which also makes them hard to grab. "Edit Mode"
+  makes every open overlay clickable and draggable at once, and turning it off
+  puts them back. A keyboard shortcut for it can be set next to the button; it
+  is off until you set one, and works even while another app is focused.
+</p>
+
 <h2>Moving and Resizing</h2>
 
 <p>

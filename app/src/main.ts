@@ -6,6 +6,7 @@ import { program, Option } from 'commander';
 import {
   app,
   session,
+  globalShortcut,
   dialog,
   ipcMain,
   screen,
@@ -197,6 +198,8 @@ const {
 
 type Settings = {
   defaultConfigFile?: string;
+  // Accelerator for the edit mode shortcut. Off unless it's set.
+  editModeShortcut?: string;
   // The config files that were open in the editor when it was last closed.
   openConfigFiles?: string[];
 };
@@ -234,7 +237,29 @@ const sendSettings = () => {
 };
 
 const sendOverlayCount = () => {
-  configEditorWindow?.webContents.send('overlays', { count: wins.length });
+  configEditorWindow?.webContents.send('overlays', {
+    count: wins.length,
+    editMode,
+    running: wins
+      .map((entry) => entry.source)
+      .filter((source) => source != null),
+  });
+};
+
+const sendDisplays = () => {
+  const primaryDisplay = screen.getPrimaryDisplay();
+
+  configEditorWindow?.webContents.send(
+    'displays',
+    screen.getAllDisplays().map((display, i) => ({
+      // 0 means the primary display, the rest are 1 based.
+      value: display.id === primaryDisplay.id ? 0 : i + 1,
+      label: display.label || `Display ${i + 1}`,
+      primary: display.id === primaryDisplay.id,
+      bounds: display.bounds,
+      workArea: display.workArea,
+    })),
+  );
 };
 
 const getRememberedConfigFiles = () => {
@@ -265,6 +290,31 @@ const sendConfigFile = (
   }
 };
 
+const setEditMode = (value: boolean) => {
+  editMode = value;
+
+  for (let entry of wins) {
+    entry.setInteractable(value);
+  }
+
+  sendOverlayCount();
+};
+
+const registerEditModeShortcut = () => {
+  globalShortcut.unregisterAll();
+
+  const accelerator = settings.editModeShortcut;
+  if (!accelerator) {
+    return true;
+  }
+
+  try {
+    return globalShortcut.register(accelerator, () => setEditMode(!editMode));
+  } catch (e: any) {
+    return false;
+  }
+};
+
 const closeAllOverlays = () => {
   for (let entry of [...wins]) {
     // Use setImmediate so the actions in the close event don't prevent the
@@ -281,7 +331,13 @@ const wins: {
   win: BaseWindow;
   handleView: WebContentsView;
   webView: WebContentsView;
+  source?: { uid: string; index: number };
+  setInteractable: (interactable: boolean) => void;
 }[] = [];
+
+// Edit mode makes every overlay interactive at once, for arranging them
+// without hunting for the tray icon.
+let editMode = false;
 // Config editor window.
 let configEditorWindow: BrowserWindow | undefined;
 // Help window.
@@ -353,6 +409,75 @@ ipcMain.handle('requestConfigFile', (event) => {
 });
 ipcMain.handle('requestSettings', (event) => {
   event.sender.send('settings', settings);
+});
+ipcMain.handle('requestDisplays', (_event) => {
+  sendDisplays();
+});
+ipcMain.handle('requestEditMode', (_event, { editMode: value }) => {
+  setEditMode(!!value);
+});
+ipcMain.handle('requestSetShortcut', (event, { accelerator }) => {
+  const previous = settings.editModeShortcut;
+
+  if (accelerator) {
+    settings.editModeShortcut = accelerator;
+  } else {
+    delete settings.editModeShortcut;
+  }
+
+  if (!registerEditModeShortcut()) {
+    // Put the working one back, so the app isn't left without a shortcut it
+    // said it had.
+    settings.editModeShortcut = previous;
+    registerEditModeShortcut();
+    dialog.showErrorBox(
+      "Can't use that shortcut.",
+      `${accelerator} isn't available. Another app may have it.`,
+    );
+  }
+
+  writeSettings();
+  event.sender.send('settings', settings);
+});
+ipcMain.handle('requestCloseWindow', (_event, { uid, index }) => {
+  for (let entry of [...wins]) {
+    if (entry.source?.uid === uid && entry.source?.index === index) {
+      entry.win.close();
+    }
+  }
+});
+ipcMain.handle('requestUpdateWindow', (_event, { uid, index, config }) => {
+  // Apply an edit to the window that config entry is already running in, so
+  // the overlay follows the editor without being relaunched.
+  const entries = wins.filter(
+    (entry) => entry.source?.uid === uid && entry.source?.index === index,
+  );
+
+  for (let entry of entries) {
+    const placement = resolvePlacement(config);
+    if (!placement) {
+      continue;
+    }
+
+    entry.conf = config;
+
+    if (!placement.fullscreen && !entry.win.isFullScreen()) {
+      entry.win.setBounds({
+        x: placement.area.x + placement.x,
+        y: placement.area.y + placement.y,
+        width: placement.width,
+        height: placement.height,
+      });
+    }
+
+    entry.win.setOpacity(placement.opacity);
+    entry.webView.webContents.setZoomFactor(placement.scale);
+    entry.handleView.webContents.send('config', config);
+
+    if (entry.webView.webContents.getURL() !== config.url) {
+      entry.webView.webContents.loadURL(config.url);
+    }
+  }
 });
 ipcMain.handle('requestRestoreFiles', (event) => {
   // The editor asks for these itself, once it's listening. Pushing them when
@@ -432,11 +557,34 @@ ipcMain.handle('requestSaveAs', (event, { config, uid }) => {
   }
 });
 
-const createOverlayWindow = (
-  conf: Conf,
-  interactable = false,
-  source?: { uid: string; index: number },
-) => {
+type Placement = {
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+  area: Electron.Rectangle;
+  xAlign: XAlign;
+  yAlign: YAlign;
+  title: string;
+  opacity: number;
+  fullscreen: boolean;
+  coverTaskbar: boolean;
+  scale: number;
+};
+
+const getPercent = (str: string) => {
+  if (!str.match(/^-?\d+(?:\.\d+)?%$/)) {
+    throw new Error('Invalid string: ' + str);
+  }
+  return parseFloat(str) / 100;
+};
+
+const getLength = (value: number | string, total: number) =>
+  typeof value === 'string' ? getPercent(value) * total : value;
+
+// Turn a config entry into a place on a display. The offset is measured from
+// the aligned edge, so it always moves the window toward the middle.
+const resolvePlacement = (conf: Conf): Placement | undefined => {
   let {
     display = DEFAULT_DISPLAY,
     x = DEFAULT_X,
@@ -473,67 +621,81 @@ const createOverlayWindow = (
 
   // The work area leaves room for taskbars and panels, the bounds don't.
   const area = coverTaskbar ? selectedDisplay.bounds : selectedDisplay.workArea;
-  const { width: displayWidth, height: displayHeight } = area;
-
-  const getPercent = (str: string) => {
-    if (!str.match(/^-?\d+(?:\.\d+)?%$/)) {
-      throw new Error('Invalid string.');
-    }
-    return parseFloat(str) / 100;
-  };
-
-  const getLength = (value: number | string, total: number) =>
-    typeof value === 'string' ? getPercent(value) * total : value;
 
   try {
-    if (typeof width === 'string') {
-      width = getPercent(width) * displayWidth;
+    const resolvedWidth = Math.round(getLength(width, area.width));
+    const resolvedHeight = Math.round(getLength(height, area.height));
+
+    if (!fullscreen && (resolvedWidth < 45 || resolvedHeight < 30)) {
+      throw new Error(
+        "You're trying to make the window too small. Min width is 45 and min height is 30.",
+      );
     }
-    if (typeof height === 'string') {
-      height = getPercent(height) * displayHeight;
-    }
+
+    const align = (
+      offset: number | string,
+      alignment: XAlign | YAlign,
+      size: number,
+      total: number,
+    ) => {
+      const length = getLength(offset, total);
+      switch (alignment) {
+        case 'center':
+          return Math.max(0, Math.floor(total / 2 - size / 2 + length));
+        case 'right':
+        case 'bottom':
+          return Math.floor(total - size - length);
+        default:
+          return Math.floor(length);
+      }
+    };
+
+    return {
+      x: align(x, xAlign, resolvedWidth, area.width),
+      y: align(y, yAlign, resolvedHeight, area.height),
+      width: resolvedWidth,
+      height: resolvedHeight,
+      area,
+      xAlign,
+      yAlign,
+      title,
+      opacity,
+      fullscreen,
+      coverTaskbar,
+      scale,
+    };
   } catch (e: any) {
     dialog.showErrorBox('Invalid Config', e.message);
+    return undefined;
+  }
+};
+
+const createOverlayWindow = (
+  conf: Conf,
+  interactable = false,
+  source?: { uid: string; index: number },
+) => {
+  const placement = resolvePlacement(conf);
+  if (!placement) {
     return;
   }
 
-  if (!fullscreen && (width < 45 || height < 30)) {
-    dialog.showErrorBox(
-      'Invalid Config',
-      "You're trying to make the window too small. Min width is 45 and min height is 30.",
-    );
-    return;
-  }
+  const {
+    x,
+    y,
+    width,
+    height,
+    area,
+    xAlign,
+    yAlign,
+    title,
+    opacity,
+    fullscreen,
+    coverTaskbar,
+    scale,
+  } = placement;
 
-  // The offset is measured from the aligned edge, so it always moves the
-  // window toward the middle of the display.
-  const align = (
-    offset: number | string,
-    alignment: XAlign | YAlign,
-    size: number,
-    total: number,
-  ) => {
-    const length = getLength(offset, total);
-    switch (alignment) {
-      case 'center':
-        return Math.max(0, Math.floor(total / 2 - size / 2 + length));
-      case 'right':
-      case 'bottom':
-        return Math.floor(total - size - length);
-      default:
-        return Math.floor(length);
-    }
-  };
-
-  try {
-    const newX = align(x, xAlign, width, displayWidth);
-    const newY = align(y, yAlign, height, displayHeight);
-    x = newX;
-    y = newY;
-  } catch (e: any) {
-    dialog.showErrorBox('Invalid Config', e.message);
-    return;
-  }
+  let interactive = interactable || editMode;
 
   let win = new BaseWindow({
     // Tiling window managers respect this and leave the overlay floating,
@@ -543,7 +705,7 @@ const createOverlayWindow = (
     resizable: true,
     minWidth: 45,
     minHeight: 30,
-    alwaysOnTop: !interactable,
+    alwaysOnTop: !interactive,
     title,
     icon: path.join(__dirname, '..', 'assets', 'logo.png'),
     width,
@@ -743,7 +905,7 @@ const createOverlayWindow = (
   win.on('focus', focus);
 
   const blur = () => {
-    if (!interactable) {
+    if (!interactive) {
       win.setIgnoreMouseEvents(true);
     }
     win.setBackgroundColor('rgba(0, 0, 0, 0.0)');
@@ -768,12 +930,24 @@ const createOverlayWindow = (
   }
 
   win.setVisibleOnAllWorkspaces(true, { visibleOnFullScreen: true });
-  if (!interactable) {
+  if (!interactive) {
     win.setAlwaysOnTop(true, 'screen-saver', 1);
   }
+
+  const setInteractable = (value: boolean) => {
+    interactive = value;
+    win.setIgnoreMouseEvents(!value && !win.isFocused());
+
+    if (value) {
+      // Show the handle, so there's something to drag.
+      focus();
+    } else if (!win.isFocused()) {
+      blur();
+    }
+  };
   // win.webContents.openDevTools();
 
-  wins.push({ win, conf, handleView, webView });
+  wins.push({ win, conf, handleView, webView, source, setInteractable });
   makeTray();
 };
 
@@ -805,6 +979,7 @@ const createConfigEditorWindow = () => {
   configEditorWindow.webContents.on('did-finish-load', () => {
     sendSettings();
     sendOverlayCount();
+    sendDisplays();
   });
   // configEditorWindow.webContents.openDevTools();
 
@@ -1012,6 +1187,11 @@ app.whenReady().then(() => {
   });
 
   readSettings();
+  registerEditModeShortcut();
+
+  screen.on('display-added', sendDisplays);
+  screen.on('display-removed', sendDisplays);
+  screen.on('display-metrics-changed', sendDisplays);
 
   if (!configured) {
     const defaultConfigFile = getDefaultConfigFile();
@@ -1083,6 +1263,10 @@ app.whenReady().then(() => {
     console.error('Update check error: ', e);
   });
   req.end();
+});
+
+app.on('will-quit', () => {
+  globalShortcut.unregisterAll();
 });
 
 app.on('window-all-closed', () => {

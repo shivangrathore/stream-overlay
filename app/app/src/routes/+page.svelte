@@ -102,6 +102,14 @@
           <div class="launch-buttons">
             <button
               class="btn btn-secondary"
+              class:active={editMode}
+              aria-pressed={editMode}
+              disabled={overlayCount === 0}
+              title="Make every overlay clickable and draggable, so they can be arranged."
+              onclick={toggleEditMode}>Edit Mode</button
+            >
+            <button
+              class="btn btn-secondary"
               disabled={overlayCount === 0}
               title="Close every open overlay window."
               onclick={() => electronAPI.requestCloseAll()}
@@ -140,6 +148,30 @@
           </div>
         </div>
 
+        <div class="shortcut-row">
+          <label for="editShortcut" class="form-label mb-0"
+            >Edit mode shortcut</label
+          >
+          <input
+            type="text"
+            class="form-control form-control-sm"
+            data-bs-theme="light"
+            id="editShortcut"
+            placeholder="Not set, e.g. Control+Alt+O"
+            bind:value={shortcut}
+            onchange={saveShortcut}
+          />
+          {#if settings.editModeShortcut}
+            <button
+              class="btn btn-sm btn-secondary"
+              onclick={() => {
+                shortcut = '';
+                saveShortcut();
+              }}>Clear</button
+            >
+          {/if}
+        </div>
+
         <p class="hint">
           Drag or resize an overlay window and its position and size update
           here, so you can save where you put it.
@@ -148,6 +180,8 @@
         <ConfigEditor
           bind:config={activeConfig.config}
           uid={activeConfig.uid || ''}
+          {displays}
+          {running}
         />
       {:else}
         <div class="empty-state">
@@ -176,7 +210,13 @@
 
 <script lang="ts">
   import uniqueId from 'lodash/uniqueId.js';
-  import { normalizeConf, type ConfContainer, type Settings } from '$lib/Conf';
+  import {
+    normalizeConf,
+    type ConfContainer,
+    type DisplayInfo,
+    type Settings,
+    type WindowSource,
+  } from '$lib/Conf';
   import electronAPI from '$lib/electronAPI';
   import ConfigEditor from '$lib/ConfigEditor.svelte';
   import Help from './help/+page.svelte';
@@ -192,15 +232,72 @@
   );
 
   let overlayCount = $state(0);
+  let editMode = $state(false);
+  let running: WindowSource[] = $state([]);
+  let displays: DisplayInfo[] = $state([]);
+  let shortcut = $state('');
 
   electronAPI.settings((_event, data) => {
     settings = data;
+    shortcut = data.editModeShortcut ?? '';
   });
   electronAPI.requestSettings();
 
   electronAPI.overlays((_event, data) => {
     overlayCount = data.count;
+    editMode = data.editMode;
+    running = data.running;
   });
+
+  electronAPI.displays((_event, data) => {
+    displays = data;
+  });
+  electronAPI.requestDisplays();
+
+  // Push edits to the window a config entry is already running in, so the
+  // overlay follows the editor. The JSON we last sent, and the one we last got
+  // back from a window being dragged, are both remembered, so an edit isn't
+  // echoed back and forth.
+  const sentConfigs: { [key: string]: string } = {};
+
+  $effect(() => {
+    if (!activeConfig) {
+      return;
+    }
+
+    const uid = activeConfig.uid || '';
+
+    activeConfig.config.forEach((win, index) => {
+      const key = `${uid}:${index}`;
+      const json = JSON.stringify(win);
+
+      if (
+        !running.some((source) => source.uid === uid && source.index === index)
+      ) {
+        sentConfigs[key] = json;
+        return;
+      }
+
+      if (sentConfigs[key] === json) {
+        return;
+      }
+
+      sentConfigs[key] = json;
+      electronAPI.requestUpdateWindow({
+        uid,
+        index,
+        config: $state.snapshot(win),
+      });
+    });
+  });
+
+  function toggleEditMode() {
+    electronAPI.requestEditMode({ editMode: !editMode });
+  }
+
+  function saveShortcut() {
+    electronAPI.requestSetShortcut({ accelerator: shortcut.trim() || null });
+  }
 
   // Reopen the config files from last time. This is asked for here, rather
   // than pushed when the page loads, so nothing is sent before the handlers
@@ -236,6 +333,9 @@
     win.y = position.y;
     win.width = position.width;
     win.height = position.height;
+
+    // It's already where this says, so don't send it straight back.
+    sentConfigs[`${uid}:${index}`] = JSON.stringify(win);
   });
 
   function toggleStartupConfig() {
@@ -448,6 +548,18 @@
     font-size: 0.75em;
     font-weight: 700;
     line-height: 1.5;
+  }
+
+  .shortcut-row {
+    display: flex;
+    align-items: center;
+    gap: 0.6rem;
+    margin-top: 0.75rem;
+    flex-wrap: wrap;
+  }
+
+  .shortcut-row .form-control {
+    max-width: 18rem;
   }
 
   .hint {

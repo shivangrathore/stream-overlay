@@ -1,10 +1,21 @@
+{#if displays.length}
+  <LayoutPreview bind:config {displays} {running} {uid} bind:selected />
+{/if}
+
 <div class="window-grid">
   {#each config as win, i}
-    <div class="card window-card">
+    <div
+      class="card window-card"
+      class:selected={selected === i}
+      onpointerdown={() => (selected = i)}
+    >
       <div class="card-header">
         <div class="window-name">
           <span class="window-index">{i + 1}</span>
           <span class="window-title" title={win.title}>{win.title}</span>
+          {#if isRunning(i)}
+            <span class="running-dot" title="This window is open."></span>
+          {/if}
         </div>
         <div class="dropdown">
           <button
@@ -55,10 +66,21 @@
               onclick={() => moveRight(i)}>&gt;</button
             >
           </div>
-          <button
-            class="btn btn-sm btn-outline-danger"
-            onclick={() => removeWindow(i)}>Remove</button
-          >
+          <div class="card-actions-end">
+            {#if isRunning(i)}
+              <button
+                class="btn btn-sm btn-secondary"
+                title="Close this overlay window."
+                onclick={() =>
+                  electronAPI.requestCloseWindow({ uid, index: i })}
+                >Close</button
+              >
+            {/if}
+            <button
+              class="btn btn-sm btn-outline-danger"
+              onclick={() => removeWindow(i)}>Remove</button
+            >
+          </div>
         </div>
       </div>
     </div>
@@ -71,17 +93,35 @@
 </div>
 
 <script lang="ts">
-  import { normalizeConf, type Conf } from '$lib/Conf';
+  import {
+    normalizeConf,
+    type Conf,
+    type DisplayInfo,
+    type WindowSource,
+  } from '$lib/Conf';
   import electronAPI from '$lib/electronAPI';
+  import LayoutPreview from '$lib/LayoutPreview.svelte';
   import WindowEditor from '$lib/WindowEditor.svelte';
 
   let {
     config = $bindable(),
     uid = '',
+    displays = [],
+    running = [],
   }: {
     config: Conf[];
     uid?: string;
+    displays?: DisplayInfo[];
+    running?: WindowSource[];
   } = $props();
+
+  let selected = $state(-1);
+
+  function isRunning(index: number) {
+    return running.some(
+      (source) => source.uid === uid && source.index === index,
+    );
+  }
 
   function launch(i: number, mode: 'normal' | 'clickable') {
     electronAPI.requestLaunch({
@@ -142,6 +182,26 @@
 
   .window-card {
     overflow: hidden;
+  }
+
+  .window-card.selected {
+    border-color: var(--so-accent);
+    box-shadow:
+      0 0 0 2px var(--so-accent-soft),
+      var(--so-shadow);
+  }
+
+  .running-dot {
+    flex: none;
+    width: 0.5rem;
+    height: 0.5rem;
+    border-radius: 50%;
+    background-color: #2ec27e;
+  }
+
+  .card-actions-end {
+    display: flex;
+    gap: 0.4rem;
   }
 
   .window-card .card-header {

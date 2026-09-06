@@ -24,6 +24,14 @@
   <developer_name>Hunter Perrin</developer_name>
 
   <releases>
+    <release version="6.3.0" date="2026-09-06">
+      <description>
+        <p>Arrange overlays on a scaled map of your displays, by dragging them.</p>
+        <p>Open windows follow the editor as you change them, with no relaunch.</p>
+        <p>Edit mode makes every overlay clickable at once, with an optional keyboard shortcut.</p>
+        <p>The editor shows which windows are open, and can close them one at a time.</p>
+      </description>
+    </release>
     <release version="6.2.2" date="2026-09-06">
       <description>
         <p>The config editor always opens at startup, so it can be reached without a system tray.</p>
