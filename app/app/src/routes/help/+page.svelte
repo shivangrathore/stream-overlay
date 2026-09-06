@@ -33,9 +33,14 @@
 <p>
   Turn on "Launch on startup" for a saved config file, and Stream Overlay will
   open those overlays by itself the next time it starts, so you don't have to
-  open the config file every time. Turn it off to go back to opening the config
-  editor at startup. Opening a config file from your file manager, or passing
-  one on the command line, still takes precedence.
+  open the config file every time. Opening a config file from your file manager,
+  or passing one on the command line, still takes precedence.
+</p>
+
+<p>
+  The config editor opens at startup either way, with the config files that were
+  open last time, so you never have to hunt for them again. Starting the app a
+  second time brings that editor up instead of running a second copy.
 </p>
 
 <h2>Moving and Resizing</h2>

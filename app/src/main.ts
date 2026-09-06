@@ -920,13 +920,15 @@ const makeTray = () => {
 
 let config: Conf[] = [];
 
-const createOverlayWindows = () => {
-  for (let entry of config) {
+const createOverlayWindows = (entries: Conf[] = config) => {
+  for (let entry of entries) {
     createOverlayWindow(entry);
   }
 };
 
-const launchConfigFile = (filename: string) => {
+const launchConfigFile = (filename: string): Conf[] | undefined => {
+  const entries: Conf[] = [];
+
   try {
     const userConfig = JSON.parse(fs.readFileSync(filename).toString());
     if (!Array.isArray(userConfig)) {
@@ -943,6 +945,7 @@ const launchConfigFile = (filename: string) => {
             JSON.stringify(entry),
         );
       }
+      entries.push(entry);
       config.push(entry);
     }
 
@@ -952,6 +955,8 @@ const launchConfigFile = (filename: string) => {
       ...(settings.openConfigFiles ?? []).filter((name) => name !== filename),
     ];
     writeSettings();
+
+    return entries;
   } catch (e: any) {
     dialog.showErrorBox('Error reading config file.', e.message);
     app.exit(1);
@@ -961,8 +966,37 @@ const launchConfigFile = (filename: string) => {
 let tray: Tray | undefined;
 let updateAvailable = false;
 
-app.on('open-file', (_event, path) => {
-  launchConfigFile(path);
+app.on('open-file', (_event, filename) => {
+  const entries = launchConfigFile(filename);
+  if (entries && app.isReady()) {
+    createOverlayWindows(entries);
+  }
+});
+
+// A second launch opens whatever it was given in this instance, rather than
+// starting another copy of the app on top of the overlays that are up.
+if (!app.requestSingleInstanceLock()) {
+  app.exit(0);
+}
+
+app.on('second-instance', (_event, argv) => {
+  const filename = argv
+    .slice(1)
+    .find(
+      (arg) =>
+        !arg.startsWith('-') &&
+        arg.endsWith('.streamoverlay') &&
+        fs.existsSync(arg),
+    );
+
+  if (filename) {
+    const entries = launchConfigFile(path.resolve(filename));
+    if (entries) {
+      createOverlayWindows(entries);
+    }
+  }
+
+  createConfigEditorWindow();
 });
 
 app.whenReady().then(() => {
@@ -1007,6 +1041,10 @@ app.whenReady().then(() => {
   }
 
   createOverlayWindows();
+
+  // The editor is the only way to reach the app's settings, and a system tray
+  // isn't a given, so it always opens.
+  createConfigEditorWindow();
 
   app.on('activate', () => {
     if (BrowserWindow.getAllWindows().length === 0) createOverlayWindows();
