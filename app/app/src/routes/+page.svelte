@@ -172,6 +172,15 @@
           {/if}
         </div>
 
+        {#if fullscreenApp}
+          <div class="notice">
+            <strong>A fullscreen app is covering your overlays.</strong>
+            Windows hides every overlay while a game runs in exclusive fullscreen.
+            Switch the game to borderless, or leave Fullscreen Optimizations turned
+            on for it, and the overlays come back.
+          </div>
+        {/if}
+
         <p class="hint">
           Drag or resize an overlay window and its position and size update
           here, so you can save where you put it.
@@ -247,6 +256,12 @@
     overlayCount = data.count;
     editMode = data.editMode;
     running = data.running;
+  });
+
+  let fullscreenApp = $state(false);
+
+  electronAPI.fullscreenApp((_event, data) => {
+    fullscreenApp = data.fullscreenApp;
   });
 
   electronAPI.displays((_event, data) => {
@@ -548,6 +563,15 @@
     font-size: 0.75em;
     font-weight: 700;
     line-height: 1.5;
+  }
+
+  .notice {
+    margin-top: 0.75rem;
+    padding: 0.7rem 0.9rem;
+    border: 1px solid var(--so-accent);
+    border-radius: var(--so-radius-sm);
+    background-color: var(--so-accent-soft);
+    font-size: 0.9rem;
   }
 
   .shortcut-row {

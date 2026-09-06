@@ -11,6 +11,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
   overlays: (callback) => ipcRenderer.on('overlays', callback),
   restored: (callback) => ipcRenderer.on('restored', callback),
   displays: (callback) => ipcRenderer.on('displays', callback),
+  fullscreenApp: (callback) => ipcRenderer.on('fullscreenApp', callback),
   requestFocusEvent: () => ipcRenderer.invoke('requestFocusEvent'),
   requestConfig: () => ipcRenderer.invoke('requestConfig'),
   requestClose: () => ipcRenderer.invoke('requestClose'),

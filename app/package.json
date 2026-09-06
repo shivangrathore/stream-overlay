@@ -1,6 +1,6 @@
 {
   "name": "stream-overlay",
-  "version": "6.3.0",
+  "version": "6.3.1",
   "description": "Show borderless, transparent, click-through browser windows for streaming.",
   "icon": "assets/logo.png",
   "main": "build/main.js",
@@ -17,6 +17,7 @@
     "electron": "^36.3.1"
   },
   "dependencies": {
-    "commander": "^14.0.0"
+    "commander": "^14.0.0",
+    "koffi": "^3.2.1"
   }
 }

@@ -113,10 +113,33 @@
 <h2>Fullscreen Apps</h2>
 
 <p>
-  Stream Overlay doesn't work over proper fullscreen windows, so your game needs
-  to be in "borderless" or "borderless fullscreen" to allow Stream Overlay on
-  top of it. If it's still not appearing on top, try setting it to windowed mode
-  then back to borderless.
+  Stream Overlay can't draw over a game running in exclusive fullscreen. In that
+  mode the game owns the screen and the desktop compositor is bypassed, so no
+  window of any kind appears over it. Your game needs to be in "borderless" or
+  "borderless fullscreen". If it's still not appearing on top, try setting it to
+  windowed mode then back to borderless.
+</p>
+
+<p>
+  On Windows, most modern games in "fullscreen" are really borderless already,
+  thanks to Fullscreen Optimizations, so leaving that turned on for the game is
+  usually enough. When Windows reports that a fullscreen app has taken the
+  screen, the config editor says so, rather than leaving you wondering where
+  your overlays went.
+</p>
+
+<h2>Performance</h2>
+
+<p>
+  Each overlay is its own transparent browser window, which the system has to
+  blend over everything behind it. Keeping windows just big enough for their
+  widget costs far less than one window stretched over the whole display, and a
+  few small overlays cost less than several large ones.
+</p>
+
+<p>
+  Overlays never take focus away from your game. Use the tray menu, or edit
+  mode, when you want to grab one and move it.
 </p>
 
 <h2>Support Me</h2>

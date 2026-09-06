@@ -73,6 +73,9 @@
         "name": "Stream Overlay Config",
         "mimeType": "application/x-streamoverlay"
       }
+    ],
+    "asarUnpack": [
+      "**/node_modules/koffi/**"
     ]
   }
 }

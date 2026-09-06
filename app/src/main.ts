@@ -236,6 +236,62 @@ const sendSettings = () => {
   configEditorWindow?.webContents.send('settings', settings);
 };
 
+// Windows tells us when a game has taken the screen in exclusive fullscreen,
+// which is the one case an overlay window can't be drawn over. Optional: if
+// the binding isn't there, the check is simply off.
+const QUNS_BUSY = 2;
+const QUNS_RUNNING_D3D_FULL_SCREEN = 3;
+
+let queryNotificationState: (() => number) | undefined;
+
+if (process.platform === 'win32') {
+  try {
+    const koffi = require('koffi');
+    const shell32 = koffi.load('shell32.dll');
+    const query = shell32.func(
+      'long __stdcall SHQueryUserNotificationState(_Out_ int *pquns)',
+    );
+
+    queryNotificationState = () => {
+      const out = [0];
+      query(out);
+      return out[0];
+    };
+  } catch (e: any) {
+    console.error('No fullscreen game detection: ', e);
+  }
+}
+
+let fullscreenApp = false;
+
+const checkFullscreenApp = () => {
+  if (!queryNotificationState) {
+    return;
+  }
+
+  let state = 0;
+  try {
+    state = queryNotificationState();
+  } catch (e: any) {
+    return;
+  }
+
+  const value = state === QUNS_RUNNING_D3D_FULL_SCREEN || state === QUNS_BUSY;
+
+  if (value !== fullscreenApp) {
+    fullscreenApp = value;
+    configEditorWindow?.webContents.send('fullscreenApp', {
+      fullscreenApp,
+      exclusive: state === QUNS_RUNNING_D3D_FULL_SCREEN,
+    });
+    tray?.setToolTip(
+      fullscreenApp
+        ? 'Stream Overlay - hidden by a fullscreen app'
+        : 'Stream Overlay',
+    );
+  }
+};
+
 const sendOverlayCount = () => {
   configEditorWindow?.webContents.send('overlays', {
     count: wins.length,
@@ -332,7 +388,7 @@ const wins: {
   handleView: WebContentsView;
   webView: WebContentsView;
   source?: { uid: string; index: number };
-  setInteractable: (interactable: boolean) => void;
+  setInteractable: (interactable: boolean, temporary?: boolean) => void;
 }[] = [];
 
 // Edit mode makes every overlay interactive at once, for arranging them
@@ -698,6 +754,9 @@ const createOverlayWindow = (
   let interactive = interactable || editMode;
 
   let win = new BaseWindow({
+    // A click-through overlay must never take focus from the game underneath.
+    focusable: interactive,
+    hasShadow: false,
     // Tiling window managers respect this and leave the overlay floating,
     // instead of tiling it and throwing away its position and size.
     ...(process.platform === 'linux' ? { type: 'toolbar' as const } : {}),
@@ -736,6 +795,7 @@ const createOverlayWindow = (
   const webView = new WebContentsView({
     webPreferences: {
       sandbox: true,
+      spellcheck: false,
       backgroundThrottling: false,
       safeDialogs: true,
       disableHtmlFullscreenWindowResize: true,
@@ -871,7 +931,14 @@ const createOverlayWindow = (
     win.on('resize', scheduleReport);
   }
 
-  const timer = setInterval(() => win.moveTop(), 1000);
+  // Games and other always-on-top windows can steal the top spot, so it gets
+  // taken back. Once a second was a wake up per window per second for nothing;
+  // this is slow enough to be cheap and quick enough not to be noticed.
+  const timer = setInterval(() => {
+    if (!win.isDestroyed() && win.isVisible()) {
+      win.moveTop();
+    }
+  }, 3000);
 
   // Emitted when the window is closed.
   win.on('closed', () => {
@@ -915,6 +982,12 @@ const createOverlayWindow = (
     layoutViews();
   };
   win.on('blur', () => {
+    // Handed over for a single drag, so give it back once it's done with.
+    if (temporarilyInteractive) {
+      setInteractable(false);
+      return;
+    }
+
     blur();
 
     // This is necessary until this is fixed: https://github.com/electron/electron/issues/46882
@@ -934,14 +1007,19 @@ const createOverlayWindow = (
     win.setAlwaysOnTop(true, 'screen-saver', 1);
   }
 
-  const setInteractable = (value: boolean) => {
+  let temporarilyInteractive = false;
+
+  const setInteractable = (value: boolean, temporary = false) => {
     interactive = value;
-    win.setIgnoreMouseEvents(!value && !win.isFocused());
+    temporarilyInteractive = value && temporary;
+    win.setFocusable(value);
+    win.setIgnoreMouseEvents(!value);
 
     if (value) {
       // Show the handle, so there's something to drag.
+      win.focus();
       focus();
-    } else if (!win.isFocused()) {
+    } else {
       blur();
     }
   };
@@ -980,6 +1058,10 @@ const createConfigEditorWindow = () => {
     sendSettings();
     sendOverlayCount();
     sendDisplays();
+    configEditorWindow?.webContents.send('fullscreenApp', {
+      fullscreenApp,
+      exclusive: fullscreenApp,
+    });
   });
   // configEditorWindow.webContents.openDevTools();
 
@@ -1042,15 +1124,11 @@ const makeTray = () => {
     tray.setToolTip('Stream Overlay');
   }
   const contextMenu = Menu.buildFromTemplate([
-    ...wins.map(({ conf, win }, index) => ({
+    ...wins.map(({ conf, setInteractable }, index) => ({
       label: conf.title || 'Window ' + (index + 1),
-      click: async () => {
-        if (win) {
-          win.focus();
-        } else {
-          createOverlayWindow(conf);
-        }
-      },
+      // Click-through windows can't take focus, so this hands the window over
+      // to be dragged, the same as edit mode does for all of them.
+      click: async () => setInteractable(true, true),
     })),
     ...(wins.length
       ? ([
@@ -1188,6 +1266,13 @@ app.whenReady().then(() => {
 
   readSettings();
   registerEditModeShortcut();
+
+  // Only worth checking while there's something to be covered up.
+  setInterval(() => {
+    if (wins.length) {
+      checkFullscreenApp();
+    }
+  }, 5000);
 
   screen.on('display-added', sendDisplays);
   screen.on('display-removed', sendDisplays);

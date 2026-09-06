@@ -45,6 +45,12 @@ const electronAPI =
             restored(callback: (event: any) => void): void;
             displays(callback: (event: any, data: DisplayInfo[]) => void): void;
             requestDisplays(): void;
+            fullscreenApp(
+              callback: (
+                event: any,
+                data: { fullscreenApp: boolean; exclusive: boolean },
+              ) => void,
+            ): void;
             requestEditMode(data: { editMode: boolean }): void;
             requestSetShortcut(data: { accelerator: string | null }): void;
             requestCloseWindow(data: { uid: string; index: number }): void;
@@ -91,6 +97,12 @@ const electronAPI =
         restored(_callback: (event: any) => void) {},
         displays(_callback: (event: any, data: DisplayInfo[]) => void) {},
         requestDisplays() {},
+        fullscreenApp(
+          _callback: (
+            event: any,
+            data: { fullscreenApp: boolean; exclusive: boolean },
+          ) => void,
+        ) {},
         requestEditMode(_data: { editMode: boolean }) {},
         requestSetShortcut(_data: { accelerator: string | null }) {},
         requestCloseWindow(_data: { uid: string; index: number }) {},
