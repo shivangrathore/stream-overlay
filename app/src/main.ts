@@ -1,6 +1,7 @@
 import path from 'path';
 import fs from 'fs';
 import https from 'https';
+import { spawn } from 'child_process';
 import { program, Option } from 'commander';
 import {
   app,
@@ -21,14 +22,23 @@ import type { MenuItemConstructorOptions, MenuItem } from 'electron';
 app.commandLine.appendSwitch('gtk-version', '3');
 
 // Wayland doesn't let a window know or choose where it is on screen, which is
-// the whole point of an overlay, so run through XWayland instead. Set
-// STREAM_OVERLAY_WAYLAND=1 to opt out.
+// the whole point of an overlay, so start over on XWayland instead. The ozone
+// platform is picked before this file runs, so the only way to change it is to
+// start again with the environment variable set. Set STREAM_OVERLAY_WAYLAND=1
+// to opt out and stay on Wayland.
 if (
   process.platform === 'linux' &&
   process.env.XDG_SESSION_TYPE === 'wayland' &&
+  process.env.DISPLAY &&
+  process.env.ELECTRON_OZONE_PLATFORM_HINT !== 'x11' &&
   !process.env.STREAM_OVERLAY_WAYLAND
 ) {
-  app.commandLine.appendSwitch('ozone-platform-hint', 'x11');
+  spawn(process.execPath, process.argv.slice(1), {
+    detached: true,
+    stdio: 'inherit',
+    env: { ...process.env, ELECTRON_OZONE_PLATFORM_HINT: 'x11' },
+  }).unref();
+  app.exit(0);
 }
 
 const pkg = JSON.parse(
@@ -467,6 +477,9 @@ const createOverlayWindow = (
   }
 
   let win = new BaseWindow({
+    // Tiling window managers respect this and leave the overlay floating,
+    // instead of tiling it and throwing away its position and size.
+    ...(process.platform === 'linux' ? { type: 'toolbar' as const } : {}),
     maximizable: false,
     resizable: true,
     minWidth: 45,
@@ -670,11 +683,7 @@ const createOverlayWindow = (
   };
   win.on('focus', focus);
 
-  if (win.isFocused()) {
-    focus();
-  }
-
-  win.on('blur', () => {
+  const blur = () => {
     if (!interactable) {
       win.setIgnoreMouseEvents(true);
     }
@@ -683,10 +692,21 @@ const createOverlayWindow = (
     focused = false;
     handleView.setVisible(false);
     layoutViews();
+  };
+  win.on('blur', () => {
+    blur();
 
     // This is necessary until this is fixed: https://github.com/electron/electron/issues/46882
     app.emit('browser-window-blur');
   });
+
+  // Until it's focused, the window is transparent and click-through. Without
+  // this it would stay opaque and swallow clicks until its first blur.
+  if (win.isFocused()) {
+    focus();
+  } else {
+    blur();
+  }
 
   win.setVisibleOnAllWorkspaces(true, { visibleOnFullScreen: true });
   if (!interactable) {
